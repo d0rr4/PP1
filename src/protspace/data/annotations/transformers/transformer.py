@@ -1,21 +1,23 @@
 """
-Main feature transformer orchestrator.
+Main annotation transformer orchestrator.
 
-This module coordinates feature transformations by delegating to specific transformers.
+This module coordinates annotation transformations by delegating to specific transformers.
 """
 
 from collections import namedtuple
 
-from protspace.data.features.transformers.interpro_transforms import (
+from protspace.data.annotations.transformers.interpro_transforms import (
     InterProTransformer,
 )
-from protspace.data.features.transformers.length_binning import LengthBinner
-from protspace.data.features.transformers.uniprot_transforms import UniProtTransformer
+from protspace.data.annotations.transformers.length_binning import LengthBinner
+from protspace.data.annotations.transformers.uniprot_transforms import (
+    UniProtTransformer,
+)
 
-ProteinFeatures = namedtuple("ProteinFeatures", ["identifier", "features"])
+ProteinAnnotations = namedtuple("ProteinAnnotations", ["identifier", "annotations"])
 
 
-class FeatureTransformer:
+class AnnotationTransformer:
     """Main transformer that delegates to specific transformers."""
 
     def __init__(self):
@@ -24,45 +26,45 @@ class FeatureTransformer:
         self.length_binner = LengthBinner()
 
     def transform(
-        self, proteins: list[ProteinFeatures], apply_length_binning: bool = True
-    ) -> list[ProteinFeatures]:
+        self, proteins: list[ProteinAnnotations], apply_length_binning: bool = True
+    ) -> list[ProteinAnnotations]:
         """
-        Apply all transformations to protein features.
+        Apply all transformations to protein annotations.
 
         Args:
-            proteins: List of ProteinFeatures to transform
+            proteins: List of ProteinAnnotations to transform
             apply_length_binning: Whether to apply length binning (default: True)
 
         Returns:
-            List of transformed ProteinFeatures
+            List of transformed ProteinAnnotations
         """
         # Apply length binning if requested and length field exists
-        if apply_length_binning and proteins and "length" in proteins[0].features:
+        if apply_length_binning and proteins and "length" in proteins[0].annotations:
             proteins = self.length_binner.add_bins(proteins)
 
         # Apply field-specific transformations
         transformed_proteins = []
         for protein in proteins:
-            transformed_features = self._transform_features(protein.features)
+            transformed_annotations = self._transform_annotations(protein.annotations)
             transformed_proteins.append(
-                ProteinFeatures(
-                    identifier=protein.identifier, features=transformed_features
+                ProteinAnnotations(
+                    identifier=protein.identifier, annotations=transformed_annotations
                 )
             )
 
         return transformed_proteins
 
-    def _transform_features(self, features: dict) -> dict:
+    def _transform_annotations(self, annotations: dict) -> dict:
         """
-        Transform individual feature values.
+        Transform individual annotation values.
 
         Args:
-            features: Dictionary of feature name to value
+            annotations: Dictionary of annotation name to value
 
         Returns:
             Dictionary with transformed values
         """
-        transformed = features.copy()
+        transformed = annotations.copy()
 
         # UniProt transformations
         if "annotation_score" in transformed:
@@ -133,12 +135,12 @@ class FeatureTransformer:
             Transformed row
         """
         # Convert row to dict
-        features_dict = {
-            header: value for header, value in zip(headers[1:], row[1:])
-        }  # Skip identifier
+        annotations_dict = dict(
+            zip(headers[1:], row[1:], strict=True)
+        )  # Skip identifier
 
         # Transform
-        transformed_dict = self._transform_features(features_dict)
+        transformed_dict = self._transform_annotations(annotations_dict)
 
         # Convert back to row
         transformed_row = [row[0]]  # Keep identifier

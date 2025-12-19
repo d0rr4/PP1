@@ -1,60 +1,60 @@
 from unittest.mock import Mock, patch
 
-from src.protspace.data.features.retrievers.interpro_retriever import (
-    INTERPRO_FEATURES,
+from src.protspace.data.annotations.retrievers.interpro_retriever import (
+    INTERPRO_ANNOTATIONS,
     InterProRetriever,
 )
 
 # Alias for test compatibility
-InterProFeatureRetriever = InterProRetriever
+InterProAnnotationRetriever = InterProRetriever
 
 
-class TestInterProFeatureRetrieverInit:
-    """Test InterProFeatureRetriever initialization."""
+class TestInterProAnnotationRetrieverInit:
+    """Test InterProAnnotationRetriever initialization."""
 
-    def test_init_with_headers_and_features(self):
-        """Test initialization with headers and features."""
+    def test_init_with_headers_and_annotations(self):
+        """Test initialization with headers and annotations."""
         headers = ["sp|P12345|PROTEIN_MOUSE", "tr|Q67890|PROTEIN_HUMAN"]
-        features = ["pfam", "superfamily"]
+        annotations = ["pfam", "superfamily"]
         sequences = {"P12345": "MKLLLLLLLL", "Q67890": "MVKLLLLLL"}
 
-        retriever = InterProFeatureRetriever(
-            headers=headers, features=features, sequences=sequences
+        retriever = InterProAnnotationRetriever(
+            headers=headers, annotations=annotations, sequences=sequences
         )
 
         assert retriever.headers == ["P12345", "Q67890"]
-        assert retriever.features == features
+        assert retriever.annotations == annotations
         assert retriever.sequences == sequences
 
-    def test_init_default_features(self):
-        """Test initialization with default features."""
+    def test_init_default_annotations(self):
+        """Test initialization with default annotations."""
         headers = ["P12345"]
         sequences = {"P12345": "MKLLLLLLLL"}
 
-        retriever = InterProFeatureRetriever(headers=headers, sequences=sequences)
+        retriever = InterProAnnotationRetriever(headers=headers, sequences=sequences)
 
-        assert retriever.features == INTERPRO_FEATURES
+        assert retriever.annotations == INTERPRO_ANNOTATIONS
 
-    def test_init_invalid_features(self):
-        """Test initialization with invalid features."""
+    def test_init_invalid_annotations(self):
+        """Test initialization with invalid annotations."""
         headers = ["P12345"]
-        features = ["pfam", "invalid_feature", "superfamily"]
+        annotations = ["pfam", "invalid_annotation", "superfamily"]
         sequences = {"P12345": "MKLLLLLLLL"}
 
-        retriever = InterProFeatureRetriever(
-            headers=headers, features=features, sequences=sequences
+        retriever = InterProAnnotationRetriever(
+            headers=headers, annotations=annotations, sequences=sequences
         )
 
-        # Should filter out invalid features
-        assert "invalid_feature" not in retriever.features
-        assert "pfam" in retriever.features
-        assert "superfamily" in retriever.features
+        # Should filter out invalid annotations
+        assert "invalid_annotation" not in retriever.annotations
+        assert "pfam" in retriever.annotations
+        assert "superfamily" in retriever.annotations
 
     def test_manage_headers_uniprot(self):
         """Test header management for UniProt headers."""
         headers = ["sp|P12345|PROTEIN_MOUSE", "tr|Q67890|PROTEIN_HUMAN"]
 
-        retriever = InterProFeatureRetriever()
+        retriever = InterProAnnotationRetriever()
         managed = retriever._manage_headers(headers)
 
         assert managed == ["P12345", "Q67890"]
@@ -63,20 +63,20 @@ class TestInterProFeatureRetrieverInit:
         """Test header management for other header formats."""
         headers = ["generic|PROTEIN1|extra", "simple_header"]
 
-        retriever = InterProFeatureRetriever()
+        retriever = InterProAnnotationRetriever()
         managed = retriever._manage_headers(headers)
 
         assert managed == ["PROTEIN1", "simple_header"]
 
 
-class TestInterProFeatureRetrieverFetch:
-    """Test InterProFeatureRetriever fetch_features method."""
+class TestInterProAnnotationRetrieverFetch:
+    """Test InterProAnnotationRetriever fetch_annotations method."""
 
-    @patch("src.protspace.data.features.retrievers.interpro_retriever.requests.post")
-    def test_fetch_features_success(self, mock_post):
-        """Test successful feature fetching."""
+    @patch("src.protspace.data.annotations.retrievers.interpro_retriever.requests.post")
+    def test_fetch_annotations_success(self, mock_post):
+        """Test successful annotation fetching."""
         headers = ["P12345"]
-        features = ["pfam"]
+        annotations = ["pfam"]
         sequences = {"P12345": "MKLLLLLLLL"}
 
         # Mock API response
@@ -100,58 +100,58 @@ class TestInterProFeatureRetrieverFetch:
         }
         mock_post.return_value = mock_response
 
-        retriever = InterProFeatureRetriever(
-            headers=headers, features=features, sequences=sequences
+        retriever = InterProAnnotationRetriever(
+            headers=headers, annotations=annotations, sequences=sequences
         )
 
         # Override MD5 calculation for predictable test
         with patch(
-            "src.protspace.data.features.retrievers.interpro_retriever.hashlib.md5"
+            "src.protspace.data.annotations.retrievers.interpro_retriever.hashlib.md5"
         ) as mock_md5:
             mock_md5.return_value.hexdigest.return_value = (
                 "5D41402ABC4B2A76B9719D911017C592"
             )
 
-            result = retriever.fetch_features()
+            result = retriever.fetch_annotations()
 
         assert len(result) == 1
         assert result[0].identifier == "P12345"
-        assert "pfam" in result[0].features
-        assert result[0].features["pfam"] == "PF00001"
+        assert "pfam" in result[0].annotations
+        assert result[0].annotations["pfam"] == "PF00001"
 
-    def test_fetch_features_no_headers(self):
-        """Test fetch_features with no headers."""
-        retriever = InterProFeatureRetriever(
-            headers=[], features=["pfam"], sequences={}
+    def test_fetch_annotations_no_headers(self):
+        """Test fetch_annotations with no headers."""
+        retriever = InterProAnnotationRetriever(
+            headers=[], annotations=["pfam"], sequences={}
         )
 
-        result = retriever.fetch_features()
+        result = retriever.fetch_annotations()
 
         assert result == []
 
-    def test_fetch_features_no_sequences(self):
-        """Test fetch_features with no sequences."""
-        retriever = InterProFeatureRetriever(
-            headers=["P12345"], features=["pfam"], sequences={}
+    def test_fetch_annotations_no_sequences(self):
+        """Test fetch_annotations with no sequences."""
+        retriever = InterProAnnotationRetriever(
+            headers=["P12345"], annotations=["pfam"], sequences={}
         )
 
-        result = retriever.fetch_features()
+        result = retriever.fetch_annotations()
 
         assert result == []
 
-    def test_fetch_features_missing_sequences(self):
-        """Test fetch_features with missing sequences for some headers."""
+    def test_fetch_annotations_missing_sequences(self):
+        """Test fetch_annotations with missing sequences for some headers."""
         headers = ["P12345", "Q67890"]
         sequences = {"P12345": "MKLLLLLLLL"}  # Missing Q67890
 
-        retriever = InterProFeatureRetriever(
-            headers=headers, features=["pfam"], sequences=sequences
+        retriever = InterProAnnotationRetriever(
+            headers=headers, annotations=["pfam"], sequences=sequences
         )
 
         with patch.object(retriever, "_get_matches_in_batches") as mock_get_matches:
             mock_get_matches.return_value = []
 
-            retriever.fetch_features()
+            retriever.fetch_annotations()
 
             # Should only process P12345, not Q67890
             mock_get_matches.assert_called_once()
@@ -159,13 +159,13 @@ class TestInterProFeatureRetrieverFetch:
             assert len(called_md5s) == 1
 
 
-class TestInterProFeatureRetrieverParsing:
+class TestInterProAnnotationRetrieverParsing:
     """Test InterPro result parsing methods."""
 
     def test_parse_interpro_results(self):
         """Test parsing of InterPro API results."""
         md5_to_identifier = {"ABC123": "P12345"}
-        features = ["pfam", "superfamily"]
+        annotations = ["pfam", "superfamily"]
 
         api_results = [
             {
@@ -188,32 +188,32 @@ class TestInterProFeatureRetrieverParsing:
             }
         ]
 
-        retriever = InterProFeatureRetriever(features=features)
+        retriever = InterProAnnotationRetriever(annotations=annotations)
         result = retriever._parse_interpro_results(api_results, md5_to_identifier)
 
         assert len(result) == 1
         assert result[0].identifier == "P12345"
-        assert result[0].features["pfam"] == "PF00001"
-        assert result[0].features["superfamily"] == "SSF12345"
+        assert result[0].annotations["pfam"] == "PF00001"
+        assert result[0].annotations["superfamily"] == "SSF12345"
 
     def test_parse_interpro_results_not_found(self):
         """Test parsing when protein not found in UniParc."""
         md5_to_identifier = {"ABC123": "P12345"}
-        features = ["pfam"]
+        annotations = ["pfam"]
 
         api_results = [{"md5": "ABC123", "found": False, "matches": []}]
 
-        retriever = InterProFeatureRetriever(features=features)
+        retriever = InterProAnnotationRetriever(annotations=annotations)
         result = retriever._parse_interpro_results(api_results, md5_to_identifier)
 
         assert len(result) == 1
         assert result[0].identifier == "P12345"
-        assert result[0].features["pfam"] == ""  # Empty when not found
+        assert result[0].annotations["pfam"] == ""  # Empty when not found
 
     def test_parse_interpro_results_filter_databases(self):
         """Test that only requested databases are included."""
         md5_to_identifier = {"ABC123": "P12345"}
-        features = ["pfam"]  # Only requesting Pfam
+        annotations = ["pfam"]  # Only requesting Pfam
 
         api_results = [
             {
@@ -236,19 +236,19 @@ class TestInterProFeatureRetrieverParsing:
             }
         ]
 
-        retriever = InterProFeatureRetriever(features=features)
+        retriever = InterProAnnotationRetriever(annotations=annotations)
         result = retriever._parse_interpro_results(api_results, md5_to_identifier)
 
         assert len(result) == 1
         assert result[0].identifier == "P12345"
-        assert result[0].features["pfam"] == "PF00001"
+        assert result[0].annotations["pfam"] == "PF00001"
         # SUPERFAMILY should not be included since not requested
-        assert "superfamily" not in result[0].features
+        assert "superfamily" not in result[0].annotations
 
 
-def test_interpro_features_constant():
-    """Test that INTERPRO_FEATURES contains expected features."""
-    expected_features = ["pfam", "superfamily", "cath", "signal_peptide"]
+def test_interpro_annotations_constant():
+    """Test that INTERPRO_ANNOTATIONS contains expected annotations."""
+    expected_annotations = ["pfam", "superfamily", "cath", "signal_peptide"]
 
-    for feature in expected_features:
-        assert feature in INTERPRO_FEATURES
+    for annotation in expected_annotations:
+        assert annotation in INTERPRO_ANNOTATIONS

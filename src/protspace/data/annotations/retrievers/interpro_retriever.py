@@ -6,12 +6,12 @@ from typing import NamedTuple
 import requests
 from tqdm import tqdm
 
-from protspace.data.features.retrievers.base_retriever import BaseFeatureRetriever
+from protspace.data.annotations.retrievers.base_retriever import BaseAnnotationRetriever
 
 logging.basicConfig(format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# InterPro features - supported databases
+# InterPro annotations - supported databases
 # Keys are used for CLI naming and dataset creation
 # Values are used when accessing the JSON output from the InterPro API
 INTERPRO_MAPPING = {
@@ -21,21 +21,21 @@ INTERPRO_MAPPING = {
     "signal_peptide": "phobius",
 }
 
-# List of supported InterPro features for easy access
-INTERPRO_FEATURES = list(INTERPRO_MAPPING.keys())
+# List of supported InterPro annotations for easy access
+INTERPRO_ANNOTATIONS = list(INTERPRO_MAPPING.keys())
 
 # API Configuration
 BASE_URL = "https://www.ebi.ac.uk/interpro/matches/api"
 CHUNK_SIZE = 100  # As per API documentation for batch requests
 
-ProteinFeatures = namedtuple("ProteinFeatures", ["identifier", "features"])
+ProteinAnnotations = namedtuple("ProteinAnnotations", ["identifier", "annotations"])
 
 
-class InterProRetriever(BaseFeatureRetriever):
+class InterProRetriever(BaseAnnotationRetriever):
     """
-    Retrieves InterPro domain features for proteins using the InterPro API.
+    Retrieves InterPro domain annotations for proteins using the InterPro API.
 
-    Supports fetching features from:
+    Supports fetching annotations from:
     - Pfam (key: pfam)
     - SUPERFAMILY (key: superfamily)
     - CATH-Gene3D (key: cath)
@@ -45,44 +45,50 @@ class InterProRetriever(BaseFeatureRetriever):
     def __init__(
         self,
         headers: list[str] = None,
-        features: list[str] = None,
+        annotations: list[str] = None,
         sequences: dict[str, str] = None,
     ):
         """
-        Initialize the InterPro feature retriever.
+        Initialize the InterPro annotation retriever.
 
         Args:
             headers: List of protein identifiers
-            features: List of InterPro database features to fetch (pfam, superfamily, cath, signal_peptide)
+            annotations: List of InterPro database annotations to fetch (pfam, superfamily, cath, signal_peptide)
             sequences: Dictionary mapping protein identifiers to their sequences (needed for MD5 calculation)
         """
-        super().__init__(headers, features)
+        super().__init__(headers, annotations)
         self.headers = self._manage_headers(self.headers) if self.headers else []
-        self.features = self.features if self.features else INTERPRO_FEATURES
+        self.annotations = (
+            self.annotations if self.annotations else INTERPRO_ANNOTATIONS
+        )
         self.sequences = sequences if sequences else {}
 
-        # Validate features
-        invalid_features = [f for f in self.features if f not in INTERPRO_FEATURES]
-        if invalid_features:
+        # Validate annotations
+        invalid_annotations = [
+            f for f in self.annotations if f not in INTERPRO_ANNOTATIONS
+        ]
+        if invalid_annotations:
             logger.warning(
-                f"Invalid InterPro features: {invalid_features}. Supported: {INTERPRO_FEATURES}"
+                f"Invalid InterPro annotations: {invalid_annotations}. Supported: {INTERPRO_ANNOTATIONS}"
             )
-            self.features = [f for f in self.features if f in INTERPRO_FEATURES]
+            self.annotations = [
+                f for f in self.annotations if f in INTERPRO_ANNOTATIONS
+            ]
 
-    def fetch_features(self) -> list[NamedTuple]:
+    def fetch_annotations(self) -> list[NamedTuple]:
         """
-        Fetch InterPro features for all proteins.
+        Fetch InterPro annotations for all proteins.
 
         Returns:
-            List of ProteinFeatures namedtuples containing identifier and features
+            List of ProteinAnnotations namedtuples containing identifier and annotations
         """
         if not self.headers:
-            logger.warning("No headers provided for InterPro feature retrieval")
+            logger.warning("No headers provided for InterPro annotation retrieval")
             return []
 
         if not self.sequences:
             logger.warning(
-                "No sequences provided for InterPro feature retrieval. MD5 calculation requires sequences."
+                "No sequences provided for InterPro annotation retrieval. MD5 calculation requires sequences."
             )
             return []
 
@@ -115,7 +121,7 @@ class InterProRetriever(BaseFeatureRetriever):
             logger.warning("No results returned from InterPro API")
             return []
 
-        # Parse results and create features
+        # Parse results and create annotations
         return self._parse_interpro_results(api_results, md5_to_identifier)
 
     def _get_matches_in_batches(self, md5s: list[str]) -> list[dict]:
@@ -136,7 +142,7 @@ class InterProRetriever(BaseFeatureRetriever):
         )
 
         with tqdm(
-            total=len(md5s), desc="Fetching InterPro features", unit="seq"
+            total=len(md5s), desc="Fetching InterPro annotations", unit="seq"
         ) as pbar:
             for i, chunk in enumerate(chunks, 1):
                 post_url = f"{BASE_URL}/matches"
@@ -173,22 +179,24 @@ class InterProRetriever(BaseFeatureRetriever):
         self, api_results: list[dict], md5_to_identifier: dict[str, str]
     ) -> list[NamedTuple]:
         """
-        Parse InterPro API results and extract relevant features.
+        Parse InterPro API results and extract relevant annotations.
 
         Args:
             api_results: Raw API results from InterPro
             md5_to_identifier: Mapping from MD5 hash to protein identifier
 
         Returns:
-            List of ProteinFeatures with parsed InterPro data
+            List of ProteinAnnotations with parsed InterPro data
         """
         # Create reverse mapping from API database names to our keys
         api_to_key = {v: k for k, v in INTERPRO_MAPPING.items()}
 
-        # Initialize feature dictionary for each protein
-        protein_features = {}
+        # Initialize annotation dictionary for each protein
+        protein_annotations = {}
         for identifier in md5_to_identifier.values():
-            protein_features[identifier] = {feature: [] for feature in self.features}
+            protein_annotations[identifier] = {
+                annotation: [] for annotation in self.annotations
+            }
 
         # Parse API results
         for result in api_results:
@@ -205,32 +213,36 @@ class InterProRetriever(BaseFeatureRetriever):
 
                 # Map API database name to our key and check if we're interested in it
                 if source_db in api_to_key:
-                    feature_key = api_to_key[source_db]
-                    if feature_key in self.features:
+                    annotation_key = api_to_key[source_db]
+                    if annotation_key in self.annotations:
                         signature_accession = signature.get("accession", "")
                         if signature_accession:
-                            protein_features[protein_id][feature_key].append(
+                            protein_annotations[protein_id][annotation_key].append(
                                 signature_accession
                             )
 
-        # Convert to ProteinFeatures objects
+        # Convert to ProteinAnnotations objects
         result = []
-        for identifier, features_dict in protein_features.items():
+        for identifier, annotations_dict in protein_annotations.items():
             # Convert lists to comma-separated strings (similar to UniProt format)
-            processed_features = {}
-            for feature_name, feature_list in features_dict.items():
-                if feature_list:
+            processed_annotations = {}
+            for annotation_name, annotation_list in annotations_dict.items():
+                if annotation_list:
                     # Remove duplicates and sort for consistency
-                    unique_features = sorted(set(feature_list))
-                    processed_features[feature_name] = ";".join(unique_features)
+                    unique_annotations = sorted(set(annotation_list))
+                    processed_annotations[annotation_name] = ";".join(
+                        unique_annotations
+                    )
                 else:
-                    processed_features[feature_name] = ""
+                    processed_annotations[annotation_name] = ""
 
             result.append(
-                ProteinFeatures(identifier=identifier, features=processed_features)
+                ProteinAnnotations(
+                    identifier=identifier, annotations=processed_annotations
+                )
             )
 
-        logger.info(f"Processed InterPro features for {len(result)} proteins")
+        logger.info(f"Processed InterPro annotations for {len(result)} proteins")
         return result
 
     def _manage_headers(self, headers: list[str]) -> list[str]:

@@ -9,13 +9,13 @@ from typing import Any
 import taxopy
 from tqdm import tqdm
 
-from protspace.data.features.retrievers.base_retriever import BaseFeatureRetriever
+from protspace.data.annotations.retrievers.base_retriever import BaseAnnotationRetriever
 
 logging.basicConfig(format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# Taxonomy features
-TAXONOMY_FEATURES = [
+# Taxonomy annotations
+TAXONOMY_ANNOTATIONS = [
     "root",
     "domain",
     "kingdom",
@@ -28,28 +28,32 @@ TAXONOMY_FEATURES = [
 ]
 
 
-class TaxonomyRetriever(BaseFeatureRetriever):
+class TaxonomyRetriever(BaseAnnotationRetriever):
     """Retrieves taxonomy lineage data from NCBI."""
 
-    def __init__(self, taxon_ids: list[int], features: list = None):
+    def __init__(self, taxon_ids: list[int], annotations: list = None):
         # Don't call super().__init__() as we use taxon_ids instead of headers
         self.taxon_ids = self._validate_taxon_ids(taxon_ids)
-        self.features = features
+        self.annotations = annotations
         self.taxdb = self._initialize_taxdb()
 
-    def fetch_features(self) -> dict[int, dict[str, Any]]:
+    def fetch_annotations(self) -> dict[int, dict[str, Any]]:
         result = {}
 
         with tqdm(
-            total=len(self.taxon_ids), desc="Fetching taxonomy features", unit="taxon"
+            total=len(self.taxon_ids),
+            desc="Fetching taxonomy annotations",
+            unit="taxon",
         ) as pbar:
             taxonomies_info = self._get_taxonomy_info(self.taxon_ids)
 
             for taxon_id in self.taxon_ids:
                 if taxon_id in taxonomies_info:
-                    result[taxon_id] = {"features": taxonomies_info[taxon_id]}
+                    result[taxon_id] = {"annotations": taxonomies_info[taxon_id]}
                 else:
-                    result[taxon_id] = {"features": dict.fromkeys(self.features, "")}
+                    result[taxon_id] = {
+                        "annotations": dict.fromkeys(self.annotations, "")
+                    }
                 pbar.update(1)
 
         return result
@@ -89,17 +93,17 @@ class TaxonomyRetriever(BaseFeatureRetriever):
                     "species": ranks.get("species", ""),
                 }
 
-                # Filter based on requested features
+                # Filter based on requested taxonomy annotations
                 taxonomy_info = {
-                    feature: full_taxonomy_info.get(feature, "")
-                    for feature in self.features
+                    annotation: full_taxonomy_info.get(annotation, "")
+                    for annotation in self.annotations
                 }
 
                 result[taxon_id] = taxonomy_info
 
             except Exception as e:
                 logger.error(f"Failed to get taxonomy for {taxon_id}: {e}")
-                result[taxon_id] = dict.fromkeys(self.features, "")
+                result[taxon_id] = dict.fromkeys(self.annotations, "")
 
         return result
 
@@ -133,15 +137,11 @@ class TaxonomyRetriever(BaseFeatureRetriever):
                     logger.info(
                         "Your taxonomy dataset is more than one week old. Refreshing cache..."
                     )
-                    print(
-                        "Your taxonomy dataset is more than one week old. Refreshing cache..."
-                    )
                     needs_refresh = True
             except (ValueError, OSError) as e:
                 logger.warning(
                     f"Could not read timestamp file: {e}. Will refresh cache."
                 )
-                print(f"Could not read timestamp file: {e}. Will refresh cache.")
                 needs_refresh = True
         else:
             # No timestamp file: if DB files exist, create timestamp; otherwise we need a fresh download

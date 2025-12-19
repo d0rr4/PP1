@@ -1,7 +1,7 @@
 """
-UniProt feature retriever.
+UniProt annotation retriever.
 
-This module fetches protein features from the UniProt API.
+This module fetches protein annotations from the UniProt API.
 """
 
 import logging
@@ -10,14 +10,14 @@ from collections import namedtuple
 from tqdm import tqdm
 from unipressed import UniprotkbClient
 
-from protspace.data.features.retrievers.base_retriever import BaseFeatureRetriever
+from protspace.data.annotations.retrievers.base_retriever import BaseAnnotationRetriever
 from protspace.data.parsers.uniprot_parser import UniProtEntry
 
 logging.basicConfig(format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# UniProt features - these are the current protspace features
-UNIPROT_FEATURES = [
+# UniProt annotations - these are the current protspace annotations
+UNIPROT_ANNOTATIONS = [
     "annotation_score",
     "cc_subcellular_location",
     "fragment",
@@ -31,37 +31,37 @@ UNIPROT_FEATURES = [
     "xref_pdb",
 ]
 
-ProteinFeatures = namedtuple("ProteinFeatures", ["identifier", "features"])
+ProteinAnnotations = namedtuple("ProteinAnnotations", ["identifier", "annotations"])
 
 
-class UniProtRetriever(BaseFeatureRetriever):
-    """Retrieves features from UniProt API."""
+class UniProtRetriever(BaseAnnotationRetriever):
+    """Retrieves annotations from UniProt API."""
 
-    def __init__(self, headers: list[str] = None, features: list = None):
+    def __init__(self, headers: list[str] = None, annotations: list = None):
         """
         Initialize UniProt retriever.
 
         Args:
             headers: List of protein accessions to fetch
-            features: List of features to retrieve (not used, always retrieves UNIPROT_FEATURES)
+            annotations: List of annotations to retrieve (not used, always retrieves UNIPROT_ANNOTATIONS)
         """
-        super().__init__(headers, features)
+        super().__init__(headers, annotations)
         self.headers = self._manage_headers(self.headers)
 
-    def fetch_features(self) -> list[ProteinFeatures]:
+    def fetch_annotations(self) -> list[ProteinAnnotations]:
         """
-        Fetch raw UniProt properties and store in tmp files.
-        Stores UNIPROT_FEATURES with minimal processing.
-        Processing/transformation happens later in feature_manager.
+        Fetch raw UniProt annotations and store in tmp files.
+        Stores UNIPROT_ANNOTATIONS with minimal processing.
+        Processing/transformation happens later in annotation_manager.
 
         Returns:
-            List of ProteinFeatures with raw UniProt data
+            List of ProteinAnnotations with raw UniProt data
         """
         batch_size = 100
         result = []
 
         with tqdm(
-            total=len(self.headers), desc="Fetching UniProt features", unit="seq"
+            total=len(self.headers), desc="Fetching UniProt annotations", unit="seq"
         ) as pbar:
             for i in range(0, len(self.headers), batch_size):
                 batch = self.headers[i : i + batch_size]
@@ -75,42 +75,42 @@ class UniProtRetriever(BaseFeatureRetriever):
                         entry = UniProtEntry(record)
                         identifier = entry.entry
 
-                        # Extract UNIPROT_FEATURES with minimal processing
-                        features_dict = {}
-                        for prop in UNIPROT_FEATURES:
+                        # Extract UNIPROT_ANNOTATIONS
+                        annotations_dict = {}
+                        for prop in UNIPROT_ANNOTATIONS:
                             try:
                                 value = getattr(entry, prop)
                                 # Store raw values, convert to strings for CSV/Parquet compatibility
                                 if isinstance(value, list):
                                     # Join list values with semicolon (raw format)
-                                    features_dict[prop] = (
+                                    annotations_dict[prop] = (
                                         ";".join(str(v) for v in value) if value else ""
                                     )
                                 elif isinstance(value, bool):
                                     # Store bool as string
-                                    features_dict[prop] = str(value)
+                                    annotations_dict[prop] = str(value)
                                 elif value is None or value == "":
-                                    features_dict[prop] = ""
+                                    annotations_dict[prop] = ""
                                 else:
                                     # Store as string
-                                    features_dict[prop] = str(value)
+                                    annotations_dict[prop] = str(value)
                             except (KeyError, AttributeError, IndexError):
-                                features_dict[prop] = ""
+                                annotations_dict[prop] = ""
 
                         result.append(
-                            ProteinFeatures(
-                                identifier=identifier, features=features_dict
+                            ProteinAnnotations(
+                                identifier=identifier, annotations=annotations_dict
                             )
                         )
 
                 except Exception as e:
                     logger.warning(f"Failed to fetch batch {i}-{i + batch_size}: {e}")
-                    # Add empty features for failed proteins
+                    # Add empty annotations for failed proteins
                     for accession in batch:
                         result.append(
-                            ProteinFeatures(
+                            ProteinAnnotations(
                                 identifier=accession,
-                                features=dict.fromkeys(UNIPROT_FEATURES, ""),
+                                annotations=dict.fromkeys(UNIPROT_ANNOTATIONS, ""),
                             )
                         )
 

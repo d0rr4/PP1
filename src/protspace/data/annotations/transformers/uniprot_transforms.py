@@ -1,13 +1,13 @@
 """
-UniProt-specific feature transformations.
+UniProt-specific annotation transformations.
 
-This module contains transformations for UniProt features to convert
+This module contains transformations for UniProt annotations to convert
 raw values into user-friendly formats.
 """
 
 
 class UniProtTransformer:
-    """Transformations for UniProt-specific features."""
+    """Transformations for UniProt-specific annotations."""
 
     @staticmethod
     def transform_annotation_score(value: str) -> str:

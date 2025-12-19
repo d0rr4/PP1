@@ -8,21 +8,21 @@ from collections import namedtuple
 
 import numpy as np
 
-ProteinFeatures = namedtuple("ProteinFeatures", ["identifier", "features"])
+ProteinAnnotations = namedtuple("ProteinAnnotations", ["identifier", "annotations"])
 
 
 class LengthBinner:
     """Handles protein length binning operations."""
 
-    def add_bins(self, proteins: list[ProteinFeatures]) -> list[ProteinFeatures]:
+    def add_bins(self, proteins: list[ProteinAnnotations]) -> list[ProteinAnnotations]:
         """
-        Add length_fixed and length_quantile bins, remove length field.
+        Add length_fixed and length_quantile bins.
 
         Args:
-            proteins: List of ProteinFeatures with 'length' field
+            proteins: List of ProteinAnnotations with 'length' field
 
         Returns:
-            Updated list of ProteinFeatures with length bins added and length removed
+            Updated list of ProteinAnnotations with length bins added (original length kept)
         """
         lengths = self._extract_lengths(proteins)
         fixed_bins = self.compute_fixed_bins(lengths)
@@ -31,11 +31,11 @@ class LengthBinner:
         return self._update_proteins_with_bins(proteins, fixed_bins, quantile_bins)
 
     @staticmethod
-    def _extract_lengths(proteins: list[ProteinFeatures]) -> list[int | None]:
-        """Extract length values from protein features."""
+    def _extract_lengths(proteins: list[ProteinAnnotations]) -> list[int | None]:
+        """Extract length values from protein annotations."""
         lengths = []
         for protein in proteins:
-            length_str = protein.features.get("length", "")
+            length_str = protein.annotations.get("length", "")
             if length_str and str(length_str).isdigit():
                 lengths.append(int(length_str))
             else:
@@ -44,19 +44,19 @@ class LengthBinner:
 
     @staticmethod
     def _update_proteins_with_bins(
-        proteins: list[ProteinFeatures], fixed_bins: list[str], quantile_bins: list[str]
-    ) -> list[ProteinFeatures]:
+        proteins: list[ProteinAnnotations], fixed_bins: list[str], quantile_bins: list[str]
+    ) -> list[ProteinAnnotations]:
         """Update proteins with bin values (keeping original length field)."""
         updated_proteins = []
         for i, protein in enumerate(proteins):
-            updated_features = protein.features.copy()
+            updated_annotations = protein.annotations.copy()
 
-            updated_features["length_fixed"] = fixed_bins[i]
-            updated_features["length_quantile"] = quantile_bins[i]
+            updated_annotations["length_fixed"] = fixed_bins[i]
+            updated_annotations["length_quantile"] = quantile_bins[i]
 
             updated_proteins.append(
-                ProteinFeatures(
-                    identifier=protein.identifier, features=updated_features
+                ProteinAnnotations(
+                    identifier=protein.identifier, annotations=updated_annotations
                 )
             )
 

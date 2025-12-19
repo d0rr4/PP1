@@ -1,13 +1,13 @@
 """
-InterPro-specific feature transformations.
+InterPro-specific annotation transformations.
 
-This module contains transformations for InterPro features to convert
+This module contains transformations for InterPro annotations to convert
 raw values into user-friendly formats.
 """
 
 
 class InterProTransformer:
-    """Transformations for InterPro-specific features."""
+    """Transformations for InterPro-specific annotations."""
 
     @staticmethod
     def transform_cath(value: str) -> str:
