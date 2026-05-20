@@ -1,7 +1,7 @@
 import pandas as pd
 
 # load the dataset
-df = pd.read_csv("../protspace/data/3FTx/3FTx.csv")
+df = pd.read_csv("../data/3FTx/3FTx.csv")
 
 def extract_uniprot(identifier):
     parts = str(identifier).split("|")
