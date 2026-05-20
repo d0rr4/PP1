@@ -348,7 +348,7 @@ def prepare(
         embedders = [DEFAULT_EMBEDDER]
         logger.info(f"FASTA detected, defaulting to '{embedders[0]}'")
 
-    # --- Output and cache paths ---
+
     output_dir = output if output.suffix == "" else output.parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -365,7 +365,6 @@ def prepare(
     else:
         output_path = output_dir
 
-    # --- Dump cache ---
     if dump_cache:
         if not cache_dir:
             logger.error("No cache. Use --keep-tmp.")
@@ -379,7 +378,6 @@ def prepare(
             logger.error(f"No cache at {cache_path}.")
         return
 
-    # --- Build embedding sets ---
     from protspace.data.embedding.biocentral import EmbedConfig
     from protspace.data.loaders import EmbeddingSet, load_h5
     from protspace.data.loaders.h5 import EMBEDDING_EXTENSIONS
@@ -459,7 +457,6 @@ def prepare(
         if not embedding_sets:
             raise typer.BadParameter("No valid input data found.")
 
-        # --- Similarity ---
         if similarity:
             if fasta_for_similarity is None:
                 raise typer.BadParameter(
@@ -476,7 +473,6 @@ def prepare(
                 )
             )
 
-        # --- Parse annotations (repeatable option → flat list) ---
         raw = annotations if annotations else ["default"]
         annotation_list = []
         for item in raw:
@@ -485,7 +481,6 @@ def prepare(
                 if part:
                     annotation_list.append(part)
 
-        # --- Run pipeline ---
         from protspace.data.processors.pipeline import (
             PipelineConfig,
             ReducerParams,

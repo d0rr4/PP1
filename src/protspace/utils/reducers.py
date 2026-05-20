@@ -269,38 +269,6 @@ class PCAReducer(DimensionReducer):
             params["explained_variance_ratio"] = self.explained_variance
         return params
 
-#class rhoPCAReducer(DimensionReducer):
-#    """rhoPCA - contrastive dimentionality reduction method."""
-#    
-#    def fit_transform(self, target_data: np.ndarray, background_data: np.ndarray) -> np.ndarray:
-#        # combine both datasets
-#        X = np.vstack([target_data, background_data])
-#        # labels for contrast groups
-#        labels = (
-#            ["target"] * len(target_data)
-#            + ["background"] * len(background_data)
-#        )
-#        # create AnnData
-#        adata = ad.AnnData(X)
-#        adata.obs["group"] = pd.Categorical(labels)
-#        # instantiate model
-#        model = rhoPCA(
-#            adata,
-#            contrast_column="group",
-#            target="target",
-#            background="background",
-#            scale_variance=True
-#        )
-#        model.fit()
-#        # transform all data
-#        embedding = model.transform()
-#        return embedding
-#    
-#    def get_params(self) -> dict[str, Any]:
-#        return {
-#            "n_components": self.config.n_components,
-#            "scale_variance": self.config.scale_variance
-#        }
 
 class rhoPCAReducer(DimensionReducer):
     """rhoPCA - contrastive dimensionality reduction method.
@@ -314,7 +282,6 @@ class rhoPCAReducer(DimensionReducer):
         super().__init__(config)
 
     def fit_transform(self, data: np.ndarray, background_data: np.ndarray = None) -> np.ndarray:
-        # --- 1. Parse CLI Arguments for Background Matrix ---
         if background_data is None:
             bg_path_str = None
             if "--background" in sys.argv:
@@ -339,14 +306,11 @@ class rhoPCAReducer(DimensionReducer):
                     else:
                         background_data = np.array(f[first_key])
 
-        # Final validation check
         if background_data is None:
             raise ValueError(
                 "rhoPCA requires background data. The pipeline failed to parse "
                 "the '--background' flag path directly from your terminal input."
             )
-
-        # --- 2. Data Assembly & Labeling ---
         target_data = data
         X = np.vstack([target_data, background_data])
         
@@ -355,15 +319,12 @@ class rhoPCAReducer(DimensionReducer):
             + ["background"] * len(background_data)
         )
         
-        # Instantiate AnnData structure required by the rhoPCA package
         adata = ad.AnnData(X)
         adata.obs["group"] = pd.Categorical(labels)
         
-        # Safely extract configuration variables
         scale_var = getattr(self.config, "scale_variance", True)
         dims = getattr(self.config, "n_components", 2)
         
-        # --- 3. Instantiate and Fit Model ---
         model = rhoPCA(
             adata,
             contrast_column="group",
@@ -373,34 +334,23 @@ class rhoPCAReducer(DimensionReducer):
         )
         model.fit()
         
-        # --- 4. Coordinate Retrieval & Eigenvector Projection ---
         full_embeddings = None
         
-        # Strategy A: Check pre-computed target projection matrix first
         if hasattr(model, 'target_proj') and model.target_proj is not None:
-            # target_proj contains only the target slice coordinates, which is perfect
             full_embeddings = np.array(model.target_proj)
-            # Restrict columns to requested dimensions if it computed more than needed
             full_embeddings = full_embeddings[:, :dims]
-            
-        # Strategy B: Fallback to manual projection using model's loadings matrix
         if full_embeddings is None and hasattr(model, 'loadings'):
             loadings = model.loadings
             if loadings is not None:
                 v_slice = loadings[:, :dims]
-                # Matrix multiply the combined matrix X, then slice target lines
                 full_embeddings = np.dot(X, v_slice)[:len(target_data)]
                 
-        # Strategy C: Fail safely if everything is missing
         if full_embeddings is None:
             raise KeyError(
                 f"Could not extract target projections or loadings from rhoPCA.\n"
                 f"Available attributes: {[a for a in dir(model) if not a.startswith('__')]}"
             )
             
-        # --- 5. Return Array ---
-        # Because Strategy A already targets the exact subset, full_embeddings is 
-        # already sized to match target_data length perfectly.
         return full_embeddings
     
     def get_params(self) -> dict[str, Any]:
