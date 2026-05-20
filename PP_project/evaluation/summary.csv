@@ -1,0 +1,5 @@
+projection,ground_truth,recall_mean,trust_mean,cont_mean
+ProtT5 — PCA 2,full,0.1874,0.8129,0.9495
+ProtT5 — PCA 2,pca50,0.1888,0.8514,0.9512
+ProtT5 — UMAP 2,full,0.4376,0.9752,0.9759
+ProtT5 — UMAP 2,pca50,0.4286,0.9815,0.9727
