@@ -1,0 +1,12 @@
+space	type	recall_mean	trust_mean	cont_mean	knn_acc_mean	silhouette
+PCA 2 - Full	unsupervised	0.39	0.8744	0.9248		
+PCA 2 - PCA50	unsupervised	0.3848	0.8777	0.9177		
+UMAP 2 - Full	unsupervised	0.5748	0.9556	0.9619		
+UMAP 2 - PCA50	unsupervised	0.5822	0.9665	0.9583		
+t-SNE 2 - Full	unsupervised	0.7142	0.9669	0.9709		
+t-SNE 2 - PCA50	unsupervised	0.7162	0.9726	0.9666		
+Full 1024-d	supervised				0.5778	-0.0101
+PCA-50	supervised				0.574	-0.0097
+PCA 2	supervised				0.4236	-0.3598
+UMAP 2	supervised				0.5491	-0.268
+t-SNE 2	supervised				0.5737	-0.1666
