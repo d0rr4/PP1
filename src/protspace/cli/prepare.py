@@ -187,6 +187,14 @@ Opt_NoLog = Annotated[
         rich_help_panel="Output",
     ),
 ]
+Opt_Background = Annotated[
+    Path | None,
+    typer.Option(
+        "--background",
+        help="Path to the background .h5 embedding file required for rhoPCA.",
+        rich_help_panel="Input",
+    ),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +278,7 @@ def prepare(
     input: Opt_Input = None,
     query: Opt_Query = None,
     fasta: Opt_Fasta = None,
+    background: Opt_Background = None,
     # Embedding
     embedder: Opt_Embedder = None,
     batch_size: Opt_BatchSize = 1000,
@@ -509,6 +518,7 @@ def prepare(
             annotations=annotation_list,
             intermediate_dir=cache_dir,
             reducer_params=reducer_params,
+            background_path=background,
         )
 
         ReductionPipeline(config).run(embedding_sets)

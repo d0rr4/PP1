@@ -42,6 +42,9 @@ class BaseProcessor:
             "max_iter",
             "eps",
             "random_state",
+            "background",
+            "background_matrix",
+            "scale_variance",
         }
         filtered_config = {
             k: v for k, v in self.config.items() if k in valid_config_keys

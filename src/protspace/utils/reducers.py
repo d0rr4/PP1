@@ -8,6 +8,14 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS, TSNE
 
+import anndata as ad
+import pandas as pd
+import h5py
+
+import sys
+from pathlib import Path
+from rhopca.methods import rhoPCA
+
 # Re-export constants and config from lightweight module
 from protspace.utils.constants import (  # noqa: F401
     LOCALMAP_NAME,
@@ -18,6 +26,7 @@ from protspace.utils.constants import (  # noqa: F401
     REDUCER_METHODS,
     TSNE_NAME,
     UMAP_NAME,
+    RHOPCA_NAME,
     DimensionReductionConfig,
 )
 
@@ -104,6 +113,7 @@ def _ensure_annoy_or_fallback() -> None:
     def parameters_by_method(self, method: str) -> list[dict[str, Any]]:
         from pacmap import LocalMAP, PaCMAP
         from umap import UMAP
+        from rhopca.methods import rhoPCA
 
         method_map = {
             TSNE_NAME: TSNE,
@@ -112,6 +122,7 @@ def _ensure_annoy_or_fallback() -> None:
             PACMAP_NAME: PaCMAP,
             MDS_NAME: MDS,
             LOCALMAP_NAME: LocalMAP,
+            RHOPCA_NAME: rhoPCA
         }
 
         if method not in method_map:
@@ -211,7 +222,7 @@ class DimensionReducer(ABC):
         self.config = config
 
     @abstractmethod
-    def fit_transform(self, data: np.ndarray) -> np.ndarray:
+    def fit_transform(self, data: np.ndarray, background_data: np.ndarray=None) -> np.ndarray:
         """Transform data to lower dimensions."""
         pass
 
@@ -258,7 +269,146 @@ class PCAReducer(DimensionReducer):
             params["explained_variance_ratio"] = self.explained_variance
         return params
 
+#class rhoPCAReducer(DimensionReducer):
+#    """rhoPCA - contrastive dimentionality reduction method."""
+#    
+#    def fit_transform(self, target_data: np.ndarray, background_data: np.ndarray) -> np.ndarray:
+#        # combine both datasets
+#        X = np.vstack([target_data, background_data])
+#        # labels for contrast groups
+#        labels = (
+#            ["target"] * len(target_data)
+#            + ["background"] * len(background_data)
+#        )
+#        # create AnnData
+#        adata = ad.AnnData(X)
+#        adata.obs["group"] = pd.Categorical(labels)
+#        # instantiate model
+#        model = rhoPCA(
+#            adata,
+#            contrast_column="group",
+#            target="target",
+#            background="background",
+#            scale_variance=True
+#        )
+#        model.fit()
+#        # transform all data
+#        embedding = model.transform()
+#        return embedding
+#    
+#    def get_params(self) -> dict[str, Any]:
+#        return {
+#            "n_components": self.config.n_components,
+#            "scale_variance": self.config.scale_variance
+#        }
 
+class rhoPCAReducer(DimensionReducer):
+    """rhoPCA - contrastive dimensionality reduction method.
+    
+    This reducer handles parsing background data explicitly from the CLI,
+    formats matrices into AnnData structures, runs the contrastive PCA model,
+    and extracts background-aware projections directly from the fitted model attributes.
+    """
+
+    def __init__(self, config: DimensionReductionConfig):
+        super().__init__(config)
+
+    def fit_transform(self, data: np.ndarray, background_data: np.ndarray = None) -> np.ndarray:
+        # --- 1. Parse CLI Arguments for Background Matrix ---
+        if background_data is None:
+            bg_path_str = None
+            if "--background" in sys.argv:
+                try:
+                    idx = sys.argv.index("--background")
+                    bg_path_str = sys.argv[idx + 1]
+                except IndexError:
+                    pass
+            
+            if bg_path_str:
+                bg_path = Path(bg_path_str)
+                if not bg_path.exists():
+                    raise FileNotFoundError(
+                        f"The background file specified in the command line does not exist: {bg_path.resolve()}"
+                    )
+                
+                print(f"--> rhoPCA explicitly reading background matrix from CLI: {bg_path}")
+                with h5py.File(bg_path, "r") as f:
+                    first_key = list(f.keys())[0]
+                    if f[first_key].ndim == 1:
+                        background_data = np.vstack([f[key][:] for key in f.keys()])
+                    else:
+                        background_data = np.array(f[first_key])
+
+        # Final validation check
+        if background_data is None:
+            raise ValueError(
+                "rhoPCA requires background data. The pipeline failed to parse "
+                "the '--background' flag path directly from your terminal input."
+            )
+
+        # --- 2. Data Assembly & Labeling ---
+        target_data = data
+        X = np.vstack([target_data, background_data])
+        
+        labels = (
+            ["target"] * len(target_data)
+            + ["background"] * len(background_data)
+        )
+        
+        # Instantiate AnnData structure required by the rhoPCA package
+        adata = ad.AnnData(X)
+        adata.obs["group"] = pd.Categorical(labels)
+        
+        # Safely extract configuration variables
+        scale_var = getattr(self.config, "scale_variance", True)
+        dims = getattr(self.config, "n_components", 2)
+        
+        # --- 3. Instantiate and Fit Model ---
+        model = rhoPCA(
+            adata,
+            contrast_column="group",
+            target="target",
+            background="background",
+            scale_variance=scale_var
+        )
+        model.fit()
+        
+        # --- 4. Coordinate Retrieval & Eigenvector Projection ---
+        full_embeddings = None
+        
+        # Strategy A: Check pre-computed target projection matrix first
+        if hasattr(model, 'target_proj') and model.target_proj is not None:
+            # target_proj contains only the target slice coordinates, which is perfect
+            full_embeddings = np.array(model.target_proj)
+            # Restrict columns to requested dimensions if it computed more than needed
+            full_embeddings = full_embeddings[:, :dims]
+            
+        # Strategy B: Fallback to manual projection using model's loadings matrix
+        if full_embeddings is None and hasattr(model, 'loadings'):
+            loadings = model.loadings
+            if loadings is not None:
+                v_slice = loadings[:, :dims]
+                # Matrix multiply the combined matrix X, then slice target lines
+                full_embeddings = np.dot(X, v_slice)[:len(target_data)]
+                
+        # Strategy C: Fail safely if everything is missing
+        if full_embeddings is None:
+            raise KeyError(
+                f"Could not extract target projections or loadings from rhoPCA.\n"
+                f"Available attributes: {[a for a in dir(model) if not a.startswith('__')]}"
+            )
+            
+        # --- 5. Return Array ---
+        # Because Strategy A already targets the exact subset, full_embeddings is 
+        # already sized to match target_data length perfectly.
+        return full_embeddings
+    
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": getattr(self.config, "n_components", 2),
+            "scale_variance": getattr(self.config, "scale_variance", True)
+        }
+        
 class TSNEReducer(DimensionReducer):
     """t-SNE (t-Distributed Stochastic Neighbor Embedding) reduction."""
 

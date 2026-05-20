@@ -4,7 +4,7 @@ Import this module freely without triggering numba/pynndescent compilation.
 """
 
 from dataclasses import dataclass, field, fields
-from typing import Literal, get_args
+from typing import Literal, get_args, Optional, Any
 
 # Method name constants
 PCA_NAME = "pca"
@@ -13,8 +13,9 @@ UMAP_NAME = "umap"
 PACMAP_NAME = "pacmap"
 MDS_NAME = "mds"
 LOCALMAP_NAME = "localmap"
+RHOPCA_NAME = "rhopca"
 
-REDUCER_METHODS = [PCA_NAME, TSNE_NAME, UMAP_NAME, PACMAP_NAME, MDS_NAME, LOCALMAP_NAME]
+REDUCER_METHODS = [PCA_NAME, TSNE_NAME, UMAP_NAME, PACMAP_NAME, MDS_NAME, LOCALMAP_NAME, RHOPCA_NAME]
 
 # Metric types
 METRIC_TYPES = Literal["euclidean", "cosine"]
@@ -55,6 +56,10 @@ class DimensionReductionConfig:
     max_iter: int = field(default=300, metadata={"gt": 0})
     eps: float = field(default=1e-3, metadata={"gt": 0})
     random_state: int = field(default=42, metadata={"gte": 0})
+    
+    background: str = field(default=None)
+    background_matrix: Any = field(default=None)
+    scale_variance: bool = field(default=True)
 
     def __post_init__(self):
         """Validate configuration parameters."""
