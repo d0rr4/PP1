@@ -1,0 +1,88 @@
+identifier,rhopca_x,rhopca_y,protein_name,organism
+sp|A0A0B4J184|T3A_TERVA,-5.67142951490851e-08,1.7068762375727076e-08,Venom peptide Tv1,Terebra variegata
+sp|A0A6G9KHD3|TX12A_MANRB,-5.6714305640692686e-08,1.7068767399486262e-08,U12-myrmicitoxin-Mri1a,Manica rubida
+sp|B3EWU4|TXS1D_CUPSA,-5.671428858489147e-08,1.706876551210712e-08,Short cationic peptide-1d,Cupiennius salei
+sp|B3EWU5|TXS1E_CUPSA,-5.671430239329034e-08,1.7068781943407885e-08,Short cationic peptide-1e,Cupiennius salei
+sp|B3EWU6|TXS1F_CUPSA,-5.671429499642944e-08,1.706878405283163e-08,Short cationic peptide-1f,Cupiennius salei
+sp|B3EWU7|TXS4E_CUPSA,-5.6714320212369884e-08,1.7068775781670098e-08,Short cationic peptide-4e,Cupiennius salei
+sp|B3EWU8|TXS1G_CUPSA,-5.6714304697003115e-08,1.7068779084583596e-08,Short cationic peptide-1g,Cupiennius salei
+sp|B3EWV0|TXS5A_CUPSA,-5.6714303489635576e-08,1.7068760349570056e-08,Short cationic peptide-5a,Cupiennius salei
+sp|B3EWV5|TXS3A_CUPSA,-5.671431624332257e-08,1.706876995299922e-08,Short cationic peptide-3a,Cupiennius salei
+sp|B3EWV8|TXS4A_CUPSA,-5.6714314133898824e-08,1.706877925111705e-08,Short cationic peptide-4a,Cupiennius salei
+sp|B3EWV9|TXS4B_CUPSA,-5.671428687792357e-08,1.706876791296441e-08,Short cationic peptide-4b,Cupiennius salei
+sp|B3EWW0|TXS4C_CUPSA,-5.671431796416826e-08,1.7068773033868112e-08,Short cationic peptide-4c,Cupiennius salei
+sp|B3EWW1|TXS4D_CUPSA,-5.671431207998623e-08,1.7068763694116917e-08,Short cationic peptide-4d,Cupiennius salei
+sp|B3EWW2|TXS4F_CUPSA,-5.671430018672208e-08,1.7068777308226757e-08,Short cationic peptide-4f,Cupiennius salei
+sp|B3EWW3|TXC7A_CUPSA,-5.6714301532867495e-08,1.706877292284581e-08,Cupiennin-7a,Cupiennius salei
+sp|B3EWW4|TXC7B_CUPSA,-5.671429981202181e-08,1.7068770313821702e-08,Cupiennin-7b,Cupiennius salei
+sp|B3EWW5|TXC6A_CUPSA,-5.6714300180650545e-08,1.7068767954597774e-08,Cupiennin-6a,Cupiennius salei
+sp|B3EWW6|TXC6B_CUPSA,-5.671430636233765e-08,1.706877306856258e-08,Cupiennin-6b,Cupiennius salei
+sp|B3EWW7|TXC6C_CUPSA,-5.671430038101111e-08,1.7068768579098226e-08,Cupiennin-6c,Cupiennius salei
+sp|B3EWW8|TXC6D_CUPSA,-5.671430541864808e-08,1.7068779084583596e-08,Cupiennin-6d,Cupiennius salei
+sp|B3EWW9|TXC6E_CUPSA,-5.671429618471502e-08,1.7068769980754794e-08,Cupiennin-6e,Cupiennius salei
+sp|B3EWX0|TXS6A_CUPSA,-5.671432092013706e-08,1.70687803335845e-08,Short cationic peptide-6a,Cupiennius salei
+sp|B3EWX1|TXC6F_CUPSA,-5.671431560494433e-08,1.706878437202075e-08,Cupiennin-6f,Cupiennius salei
+sp|B3EWX2|TXS6B_CUPSA,-5.6714292789861176e-08,1.7068778300488585e-08,Short cationic peptide-6b,Cupiennius salei
+sp|B3EWX3|TXS6C_CUPSA,-5.671429553766316e-08,1.706877944540608e-08,Short cationic peptide-6c,Cupiennius salei
+sp|B3EWX4|TXS6D_CUPSA,-5.671430008957756e-08,1.706877510339322e-08,Short cationic peptide-6d,Cupiennius salei
+sp|C0HJD9|K6TX1_ACTBE,-5.671431088649648e-08,1.7068776128614793e-08,Potassium channel toxin AbeTx1,Actinia bermudensis
+sp|C0HJM7|TXL1_PHOPT,-5.671429442744014e-08,1.7068761376526354e-08,Toxin Tx1 (Fragment),Phoneutria pertyi
+sp|C0HKG4|TX4A_CHEPU,-5.671430125531174e-08,1.706877877233337e-08,Toxin CpTx-4a (Fragment),Cheiracanthium punctorium
+sp|P0C2A3|TXBB_ANDCR,-5.671431854703535e-08,1.7068769307682086e-08,Toxin b subunit beta (Fragment),Androctonus crassicauda
+sp|P0C5J6|SCXMT_PARLS,-5.6714301033267134e-08,1.706877440083021e-08,Mammal toxin PlMT (Fragment),Parabuthus liosoma
+sp|P0C5J7|SCXT_PARLS,-5.6714305973759593e-08,1.70687813015602e-08,Insect toxin PlIT (Fragment),Parabuthus liosoma
+sp|P0C8B6|STX1_SCOAN,-5.671430458598081e-08,1.706877177489255e-08,Scolopendra 4511.92 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8B8|STX2_SCOAN,-5.671430426679169e-08,1.7068771868133936e-08,Scolopendra 4722.07 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8B9|STX2_SCOVN,-5.671430426679169e-08,1.7068771868133936e-08,Scolopendra 4767.06 Da toxin (Fragment),Scolopendra viridicornis nigra
+sp|P0C8C0|STX3A_SCOAN,-5.671428948694768e-08,1.706877105628335e-08,Scolopendra 5848.46 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8C1|STX3B_SCOAN,-5.6714319573991645e-08,1.7068776919648698e-08,Scolopendra 5920.47 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8C3|STX4_SCOAN,-5.671430100551156e-08,1.7068765872929603e-08,Scolopendra 5887.74 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8C4|STX4_SCOVN,-5.6714309137895214e-08,1.7068769522787797e-08,Scolopendra 5885.28 Da toxin (Fragment),Scolopendra viridicornis nigra
+sp|P0C8C5|STX5_SCOAN,-5.671430196307892e-08,1.7068767566019716e-08,Scolopendra 5928.03 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8C6|STX5_SCOVN,-5.671431024811824e-08,1.7068772339978722e-08,Scolopendra 5924.74 Da toxin (Fragment),Scolopendra viridicornis nigra
+sp|P0C8C7|STX6_SCOAN,-5.6714307111738194e-08,1.7068778696005538e-08,Scolopendra 5971.33 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8C8|STX7_SCOVN,-5.671428911224741e-08,1.706876773255317e-08,Scolopendra 6940.74 Da toxin (Fragment),Scolopendra viridicornis nigra
+sp|P0C8C9|STX8A_SCOAN,-5.671432157239309e-08,1.7068769786465765e-08,Scolopendra 7913.19 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8D0|STX8B_SCOAN,-5.671431435594343e-08,1.7068772822231848e-08,Scolopendra 8013.07 Da toxin (Fragment),Scolopendra angulata
+sp|P0C8D1|STX8A_SCOVN,-5.67142904861484e-08,1.7068769786465765e-08,Scolopendra 7997.01 Da toxin (Fragment),Scolopendra viridicornis nigra
+sp|P0C8D3|STX9_SCOVN,-5.671430358678009e-08,1.706877084117764e-08,Scolopendra 10564.33 Da toxin (Fragment),Scolopendra viridicornis nigra
+sp|P0C911|SCX_ANDMA,-5.671430131082289e-08,1.706877006402152e-08,Alpha-toxin (Fragment),Androctonus mauritanicus mauritanicus
+sp|P0CF76|SCX11_OLIMR,-5.67143028928907e-08,1.7068776114737005e-08,Toxin BmKNJX11 (Fragment),Olivierus martensii
+sp|P0CI24|TXM46_CONAO,-5.6714312801631195e-08,1.706877424123565e-08,Conotoxin Ar1446,Conus araneosus
+sp|P0CJ33|TXVE1_MACLB,-5.6714298812821085e-08,1.7068775420847615e-08,Snake venom vascular endothelial growth factor toxin IC1 (Fragment),Macrovipera lebetinus
+sp|P0DJ96|TX22_DENAN,-5.671430365616903e-08,1.7068765345573667e-08,Pro-rich toxin 4,Dendroaspis angusticeps
+sp|P0DL24|SCXT_TITPA,-5.6714303489635576e-08,1.7068774671447073e-08,Putative beta-neurotoxin (Fragment),Tityus pachyurus
+sp|P0DM72|BRK1_TRICX,-5.671430271247946e-08,1.7068770938322153e-08,Nephilakinin-1,Trichonephila clavipes
+sp|P0DM73|BRK2_TRICX,-5.671428895959174e-08,1.7068773269790505e-08,Nephilakinin-2,Trichonephila clavipes
+sp|P0DM74|BRK3_TRICX,-5.671430056142235e-08,1.706877165996712e-08,Nephilakinin-3,Trichonephila clavipes
+sp|P0DM76|BRK_TRICX,-5.671432047604785e-08,1.7068777433126847e-08,Bradykinin,Trichonephila clavipes
+sp|P0DPK7|CX5E_CONTE,-5.671428693343472e-08,1.706876551210712e-08,Conotoxin tx5e,Conus textile
+sp|P0DQM9|CX07_CONZO,-5.671429181841603e-08,1.7068772506512175e-08,Conotoxin Czon1107,Conus zonatus
+sp|P0DQN0|CX69_CONCB,-5.6714302157367946e-08,1.706877676005414e-08,Conotoxin Cca1669,Conus caracteristicus
+sp|P0DQZ0|CX1A_CONML,-5.6714313245720405e-08,1.7068775191864116e-08,A-conotoxin cyclic Mila,Conus miliaris
+sp|P0DSK1|TX16A_MYRGU,-5.6714306792549074e-08,1.7068771007711092e-08,U-myrmeciitoxin(01)-Mg6a,Myrmecia gulosa
+sp|P0DSL0|TX1A_MYRRB,-5.6714310525673994e-08,1.706876329166107e-08,U1-myrmicitoxin-Mr1a,Myrmica rubra
+sp|P0DSM3|WTX1A_NEOIV,-5.671430196307892e-08,1.706877297835696e-08,U1-poneritoxin-Ni1a,Neoponera inversa
+sp|P0DTB8|SCX38_CENMA,-5.671430429107782e-08,1.70687787376389e-08,Toxin Cm38 (Fragment),Centruroides margaritatus
+sp|P0DW31|SCXE_TITPA,-5.671432176321267e-08,1.7068771368533575e-08,Toxin TpF21-Cocle (Fragment),Tityus pachyurus
+sp|P0DX50|TX20A_PHOBO,-5.671431119180781e-08,1.706877772456039e-08,Omega-ctenitoxin-Pb1a (Fragment),Phoneutria boliviensis
+sp|P0DX51|TX35A_PHOBO,-5.671430833211616e-08,1.706876512352906e-08,GAMMA-ctenitoxin-Pb1a (Fragment),Phoneutria boliviensis
+sp|P0DX57|TX2_BUTLE,-5.671432018461431e-08,1.7068771895889512e-08,Toxin Bl-2 (Fragment),Buthacus leptochelys
+sp|P0DX58|TX3_BUTLE,-5.671431357878731e-08,1.706877716944888e-08,Toxin Bl-3 (Fragment),Buthacus leptochelys
+sp|P0DXW6|TXU45_MEGOP,-5.671430294840185e-08,1.706876810725344e-08,U-megalopygitoxin(4)-Mo5,Megalopyge opercularis
+sp|P0DXW9|TXUB_MEGOP,-5.671430762521634e-08,1.7068773949802107e-08,U-megalopygitoxin(11)-Mo28,Megalopyge opercularis
+sp|P0DXZ7|TXO1A_HOTFR,-5.671429875730993e-08,1.7068762181438046e-08,Omega-buthitoxin-Hf1a,Hottentotta franzwerneri
+sp|P13211|SRTXD_ATREN,-5.671430036713332e-08,1.706876760765308e-08,Sarafotoxin-D,Atractaspis engaddensis
+sp|P31010|TX3_PHONI,-5.6714297549942394e-08,1.706876684437475e-08,U7-ctenitoxin-Pn1b (Fragment),Phoneutria nigriventer
+sp|P58305|TXGRX_BUNCN,-5.6714300644689075e-08,1.7068778668249962e-08,Granulitoxin (Fragment),Bunodosoma cangicum
+sp|P60261|SCX22_TITDI,-5.6714303003913e-08,1.706877171547827e-08,Toxin TdII-2 (Fragment),Tityus discrepans
+sp|P60265|SCX9_CENNO,-5.671431896336898e-08,1.706876773255317e-08,Beta-toxin Cn9 (Fragment),Centruroides noxius
+sp|P69392|PMTXB_BATMC,-5.671429548215201e-08,1.7068775504114342e-08,Beta-pompilidotoxin,Batozonellus maculifrons
+sp|P80163|SRTXB_ATRBI,-5.671430498843666e-08,1.7068769453398858e-08,Bibrotoxin,Atractaspis bibronii
+sp|P82428|WTX1F_NEOGO,-5.671429722207966e-08,1.7068773838779805e-08,M-poneritoxin-Ng1f,Neoponera goeldii
+sp|P85235|TX36A_CTEON,-5.671429409437323e-08,1.7068777502515786e-08,U11-ctenitoxin-Co1a (Fragment),Ctenus ornatus
+sp|P85274|TX90A_CTEON,-5.6714298618532055e-08,1.7068771437922514e-08,U7-ctenitoxin-Co1a (Fragment),Ctenus ornatus
+sp|P86117|TX3_OPICY,-5.671430122755616e-08,1.706876590068518e-08,Toxin OcyKTx3 (Fragment),Opisthacanthus cayaporum
+sp|P86536|VM3CX_DABRR,-5.671431169140817e-08,1.7068767177441657e-08,Coagulation factor X-activating enzyme heavy chain (Fragment),Daboia russelii
+sp|Q7M3P1|TXV1_PHONI,-5.671431049791842e-08,1.7068774837980527e-08,U28-ctenitoxin-Pn1a (Fragment),Phoneutria nigriventer
+sp|Q9TWR5|TXV2_PHONI,-5.67143018659344e-08,1.7068775753914522e-08,U27-ctenitoxin-Pn1a (Fragment),Phoneutria nigriventer

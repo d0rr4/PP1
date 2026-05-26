@@ -12,9 +12,10 @@ import anndata as ad
 import pandas as pd
 import h5py
 
+import scipy.sparse as sp
 import sys
 from pathlib import Path
-from rhopca.methods import rhoPCA
+from rhopca.core import rhoPCA
 
 # Re-export constants and config from lightweight module
 from protspace.utils.constants import (  # noqa: F401
@@ -113,7 +114,7 @@ def _ensure_annoy_or_fallback() -> None:
     def parameters_by_method(self, method: str) -> list[dict[str, Any]]:
         from pacmap import LocalMAP, PaCMAP
         from umap import UMAP
-        from rhopca.methods import rhoPCA
+        from rhopca.core import rhoPCA
 
         method_map = {
             TSNE_NAME: TSNE,
@@ -282,76 +283,45 @@ class rhoPCAReducer(DimensionReducer):
         super().__init__(config)
 
     def fit_transform(self, data: np.ndarray, background_data: np.ndarray = None) -> np.ndarray:
-        if background_data is None:
-            bg_path_str = None
-            if "--background" in sys.argv:
-                try:
-                    idx = sys.argv.index("--background")
-                    bg_path_str = sys.argv[idx + 1]
-                except IndexError:
-                    pass
-            
-            if bg_path_str:
-                bg_path = Path(bg_path_str)
-                if not bg_path.exists():
-                    raise FileNotFoundError(
-                        f"The background file specified in the command line does not exist: {bg_path.resolve()}"
-                    )
-                
-                print(f"--> rhoPCA explicitly reading background matrix from CLI: {bg_path}")
-                with h5py.File(bg_path, "r") as f:
-                    first_key = list(f.keys())[0]
-                    if f[first_key].ndim == 1:
-                        background_data = np.vstack([f[key][:] for key in f.keys()])
-                    else:
-                        background_data = np.array(f[first_key])
+        import scipy.sparse as sp
 
         if background_data is None:
             raise ValueError(
-                "rhoPCA requires background data. The pipeline failed to parse "
-                "the '--background' flag path directly from your terminal input."
+                "rhoPCAReducer.fit_transform() received no background_data.\n"
+                "Supply a background embedding file with the --background flag:\n"
+                "  protspace prepare ... --background background.h5 -m rhopca2"
             )
+
         target_data = data
-        X = np.vstack([target_data, background_data])
-        
-        labels = (
-            ["target"] * len(target_data)
-            + ["background"] * len(background_data)
-        )
-        
-        adata = ad.AnnData(X)
-        adata.obs["group"] = pd.Categorical(labels)
-        
-        scale_var = getattr(self.config, "scale_variance", True)
         dims = getattr(self.config, "n_components", 2)
-        
+
+        if target_data.shape[1] != background_data.shape[1]:
+            raise ValueError(
+                f"Foreground embedding dim ({target_data.shape[1]}) does not "
+                f"match background embedding dim ({background_data.shape[1]}). "
+                "Both must come from the same pLM."
+            )
+
+        n_fg = len(target_data)
+        n_bg = len(background_data)
+
+        X = np.vstack([target_data, background_data])
+        labels = ["target"] * n_fg + ["background"] * n_bg
+
+        adata = ad.AnnData(sp.csr_matrix(X.astype(np.float32)))
+        adata.obs["group"] = pd.Categorical(labels)
+
         model = rhoPCA(
             adata,
             contrast_column="group",
             target="target",
             background="background",
-            scale_variance=scale_var
+            n_GEs=dims,
         )
         model.fit()
-        
-        full_embeddings = None
-        
-        if hasattr(model, 'target_proj') and model.target_proj is not None:
-            full_embeddings = np.array(model.target_proj)
-            full_embeddings = full_embeddings[:, :dims]
-        if full_embeddings is None and hasattr(model, 'loadings'):
-            loadings = model.loadings
-            if loadings is not None:
-                v_slice = loadings[:, :dims]
-                full_embeddings = np.dot(X, v_slice)[:len(target_data)]
-                
-        if full_embeddings is None:
-            raise KeyError(
-                f"Could not extract target projections or loadings from rhoPCA.\n"
-                f"Available attributes: {[a for a in dir(model) if not a.startswith('__')]}"
-            )
-            
-        return full_embeddings
+
+        coords = np.array(model.target_proj)[:, :dims]
+        return coords.astype(np.float64)
     
     def get_params(self) -> dict[str, Any]:
         return {
