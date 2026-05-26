@@ -12,12 +12,12 @@ from sklearn.preprocessing import normalize, LabelEncoder
 from sklearn.metrics import silhouette_score
 
 # --- Config ---
-DATASET         = "toxins"
+DATASET         = "cath"
 RESULTS_DIR      = Path("protspace_results") / DATASET
 BUNDLE           = RESULTS_DIR / "data.parquetbundle"
 #ANNOT_PARQUET    = RESULTS_DIR / "annotated_embeddings.parquet"
 H5               = Path("embeddings") / f"{DATASET}.h5"
-LABEL_COL        = "protein_families"   # column in parquet labels to use for evaluation
+LABEL_COL        = "architecture"   # column in parquet labels to use for evaluation
 K_VALUES         = [1, 2, 5, 10, 15, 20, 30, 50]
 N_PCA_COMPONENTS = 50
 DELIMITER        = b"---PARQUET_DELIMITER---"

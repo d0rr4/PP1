@@ -5,8 +5,8 @@ UMAP 2 - Full	unsupervised	0.2258	0.9914	0.9942
 UMAP 2 - PCA50	unsupervised	0.1822	0.9903	0.9925		
 t-SNE 2 - Full	unsupervised	0.4723	0.9962	0.9954		
 t-SNE 2 - PCA50	unsupervised	0.3644	0.9949	0.9934		
-Full 1024-d	supervised				0.902	0.0251
-PCA-50	supervised				0.8783	0.0028
-PCA 2	supervised				0.4991	-0.0066
-UMAP 2	supervised				0.8054	-0.0028
-t-SNE 2	supervised				0.873	-0.0173
+Full 1024-d	supervised				0.8318	-0.1034
+PCA-50	supervised				0.7596	-0.0876
+PCA 2	supervised				0.2946	-0.5351
+UMAP 2	supervised				0.661	-0.5033
+t-SNE 2	supervised				0.7907	-0.4793
