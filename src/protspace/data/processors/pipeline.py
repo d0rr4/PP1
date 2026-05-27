@@ -78,6 +78,9 @@ class PipelineConfig:
     annotations: list[str] | None = None
     intermediate_dir: Path | None = None
     reducer_params: ReducerParams = field(default_factory=ReducerParams)
+    eval_enabled: bool = False
+    eval_label: str = "protein_families"
+    eval_filter: int = 0
 
 
 # Valid override parameter names (from ReducerParams fields)
@@ -260,6 +263,19 @@ class ReductionPipeline:
         self.base.save_output(
             output, self.config.output_path, bundled=self.config.bundled
         )
+
+        if self.config.eval_enabled:
+            from protspace.data.evaluation.reduction import run_reduction_evaluation
+
+            run_reduction_evaluation(
+                embedding_sets=embedding_sets,
+                reductions=all_reductions,
+                metadata=metadata,
+                output_path=self.config.output_path,
+                bundled=self.config.bundled,
+                label_column=self.config.eval_label,
+                min_class_size=self.config.eval_filter,
+            )
 
         logger.info(
             f"Processed {len(all_headers)} proteins, "
@@ -617,6 +633,7 @@ class ReductionPipeline:
                     emb_set.name, MDS_NAME, 2, global_params
                 )
                 if cached:
+                    cached["source_embedding"] = emb_set.name
                     all_reductions.append(cached)
                     cached_projections.append(f"MDS 2 ({emb_set.name})")
                     continue
@@ -626,6 +643,7 @@ class ReductionPipeline:
                     self.base, effective_params, MDS_NAME, 2, emb_set.data
                 )
                 reduction["name"] = format_projection_name(emb_set.name, MDS_NAME, 2)
+                reduction["source_embedding"] = emb_set.name
                 all_reductions.append(reduction)
                 self._save_projection_cache(
                     emb_set.name, MDS_NAME, 2, reduction, global_params
@@ -650,12 +668,13 @@ class ReductionPipeline:
                     emb_set.name, method, dims, effective_params, param_suffix
                 )
                 if cached:
+                    cached["source_embedding"] = emb_set.name
                     all_reductions.append(cached)
                     cached_projections.append(
                         f"{method.upper()} {dims} ({emb_set.name})"
                     )
                     continue
-                
+
                 ######################################
                 # Adding rho-PCA
                 if method.lower().startswith("rhopca"):
@@ -666,7 +685,7 @@ class ReductionPipeline:
                         )
                     import h5py
                     logger.info(f"Loading background dataset from: {self.config.background_path}")
-                    
+
                     with h5py.File(self.config.background_path, "r") as hf:
                         #print("Opened the file!!")
                         # If keys are individual protein IDs, vstack them into a 2D matrix
@@ -675,13 +694,13 @@ class ReductionPipeline:
                             background_matrix = np.vstack([hf[key][:] for key in hf.keys()])
                         else:
                             background_matrix = np.array(hf[first_key])
-                    
+
                     # Explicitly inject BOTH fields into effective_params dictionary
                     effective_params["background"] = self.config.background_path
                     #print("Saving the data as a param!")
                     effective_params["background_matrix"] = background_matrix
                 ######################################
-                
+
 
                 logger.info(f"Applying {method.upper()} {dims} to '{emb_set.name}'")
                 reduction = _run_with_overridden_config(
@@ -691,6 +710,7 @@ class ReductionPipeline:
                 reduction["name"] = format_projection_name(
                     emb_set.name, method, dims, param_suffix
                 )
+                reduction["source_embedding"] = emb_set.name
                 all_reductions.append(reduction)
                 self._save_projection_cache(
                     emb_set.name, method, dims, reduction, effective_params

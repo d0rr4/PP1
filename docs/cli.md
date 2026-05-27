@@ -42,6 +42,9 @@ protspace prepare -i emb.h5 -m "umap2:n_neighbors=15" -m "umap2:n_neighbors=50" 
 
 # Inline params with semicolons, comma-separated methods
 protspace prepare -i emb.h5 -m "pca2,umap2:n_neighbors=50;min_dist=0.3,tsne2" -o output
+
+# Evaluate projections (per embedding set)
+protspace prepare -i emb.h5 -m pca2,umap2 -a default --eval --label protein_families --filter 5 -o output
 ```
 
 ### Options
@@ -123,6 +126,14 @@ This produces three projections: `ProtT5 — PCA 2`, `ProtT5 — UMAP 2 (n=15)`,
 | `--scores / --no-scores` | Include annotation confidence scores. | on |
 | `--refetch STAGES` | Recompute specific stages (comma-separated): query, embed, similarity, projections, uniprot, taxonomy, interpro, ted, biocentral. Shorthands: `all`, `annotations`. | off |
 
+#### Evaluation
+
+| Flag | Description | Default |
+| ---- | ----------- | ------- |
+| `--eval / --no-eval` | Run evaluation after bundling. Writes plots and `summary.tsv` to `{output}/eval/<embedding_name>/`. | off |
+| `--label` | Annotation column used for supervised metrics. Label strings are parsed to the first `|` and stripped (e.g. `Kinase\\|ISS` -> `Kinase`). | `protein_families` |
+| `--filter` | Minimum proteins required per class in `--label`; rarer classes are excluded from evaluation. | `0` |
+
 #### Output
 
 | Flag | Description | Default |
@@ -132,6 +143,31 @@ This produces three projections: `ProtT5 — PCA 2`, `ProtT5 — UMAP 2 (n=15)`,
 | `--keep-tmp` | Cache intermediates for resumability. | on |
 | `--no-log` | Skip writing `run.log`. | off |
 | `--dump-cache` | Print cached annotations and exit. | off |
+
+### Evaluation Output (`--eval`)
+
+When `--eval` is enabled, protspace evaluates each embedding set separately after projection output is written.
+
+- Input to evaluation per embedding set:
+  - Original high-dimensional embedding matrix
+  - All reduced projections produced from that embedding set
+  - Labels from the chosen annotation column (`--label`)
+- Label normalization:
+  - Values are split at the first `|` and trimmed
+  - Empty labels are dropped
+  - `--filter` removes classes with fewer than N proteins
+- Metrics:
+  - Unsupervised: kNN recall, trustworthiness, continuity (vs. full space and PCA ground-truth space)
+  - Supervised: kNN accuracy and silhouette score
+
+Each evaluated embedding gets:
+
+- `summary.tsv`
+- `recall.png`
+- `trustworthiness.png`
+- `continuity.png`
+- `knn_accuracy.png`
+- `silhouette.png`
 
 ## `protspace embed`
 
