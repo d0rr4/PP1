@@ -70,6 +70,7 @@ class PipelineConfig:
 
     methods: list[MethodSpec]
     output_path: Path
+    background_path: Path | str | None = None
     bundled: bool = True
     keep_tmp: bool = False
     no_scores: bool = False
@@ -635,7 +636,7 @@ class ReductionPipeline:
             for spec in self.config.methods:
                 method, dims = spec.method, spec.dims
 
-                if method not in self.base.reducers:
+                if method not in self.base.reducers and method.lower() != "rhopca":
                     logger.warning(f"Unknown method: {method}. Skipping.")
                     continue
 
@@ -654,6 +655,33 @@ class ReductionPipeline:
                         f"{method.upper()} {dims} ({emb_set.name})"
                     )
                     continue
+                
+                ######################################
+                # Adding rho-PCA
+                if method.lower().startswith("rhopca"):
+                    if not self.config.background_path:
+                        raise ValueError(
+                            "rhoPCA requires a background matrix configuration. "
+                            "Please provide it via the --background CLI flag."
+                        )
+                    import h5py
+                    logger.info(f"Loading background dataset from: {self.config.background_path}")
+                    
+                    with h5py.File(self.config.background_path, "r") as hf:
+                        #print("Opened the file!!")
+                        # If keys are individual protein IDs, vstack them into a 2D matrix
+                        first_key = list(hf.keys())[0]
+                        if hf[first_key].ndim == 1:
+                            background_matrix = np.vstack([hf[key][:] for key in hf.keys()])
+                        else:
+                            background_matrix = np.array(hf[first_key])
+                    
+                    # Explicitly inject BOTH fields into effective_params dictionary
+                    effective_params["background"] = self.config.background_path
+                    #print("Saving the data as a param!")
+                    effective_params["background_matrix"] = background_matrix
+                ######################################
+                
 
                 logger.info(f"Applying {method.upper()} {dims} to '{emb_set.name}'")
                 reduction = _run_with_overridden_config(
