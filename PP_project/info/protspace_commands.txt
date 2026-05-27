@@ -15,9 +15,12 @@ TOXINS
 
 protspace prepare \
     -i embeddings/toxins.h5:prott5 \
-    -m pca2,umap2 \
-    -a all \
-    -o protspace_results/toxins
+    -m rhopca2,pca2,umap2,tsne2  \
+    --background embeddings/toxins_background.h5 \
+    -o protspace_results/toxins \
+    --refetch annotations,projections
+
+protspace prepare -i toxins_data.h5:prot_t5 -m rhopca2,pca2,umap2 --background background_data.h5  --refetch annotations,projections
 
 
 CATH S40

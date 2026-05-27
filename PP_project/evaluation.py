@@ -12,19 +12,20 @@ from sklearn.preprocessing import normalize, LabelEncoder
 from sklearn.metrics import silhouette_score
 
 # --- Config ---
-DATASET         = "cath"
-RESULTS_DIR      = Path("protspace_results") / DATASET
-BUNDLE           = RESULTS_DIR / "data.parquetbundle"
-#ANNOT_PARQUET    = RESULTS_DIR / "annotated_embeddings.parquet"
-H5               = Path("embeddings") / f"{DATASET}.h5"
-LABEL_COL        = "architecture"   # column in parquet labels to use for evaluation
-K_VALUES         = [1, 2, 5, 10, 15, 20, 30, 50]
-N_PCA_COMPONENTS = 50
-DELIMITER        = b"---PARQUET_DELIMITER---"
-OUT_DIR          = Path("evaluation") / DATASET
+DATASET                = "toxins"
+RESULTS_DIR            = Path("protspace_results") / DATASET
+BUNDLE                 = RESULTS_DIR / "data.parquetbundle"
+#ANNOT_PARQUET         = RESULTS_DIR / "annotated_embeddings.parquet"
+H5                     = Path("embeddings") / f"{DATASET}.h5"
+LABEL_COL              = "protein_families"   # column in parquet labels to use for evaluation
+K_VALUES               = [1, 2, 5, 10, 15, 20, 30, 50]
+N_PCA_COMPONENTS       = 50
+DELIMITER              = b"---PARQUET_DELIMITER---"
+OUT_DIR                = Path("evaluation") / DATASET
 OUT_DIR.mkdir(exist_ok=True)
 
-K_STORED = 300
+K_STORED               = 300
+MIN_PROTEINS_PER_CLASS = 0  # <-- Filter out classes with fewer than this many proteins
 
 # =============================================================
 # 1. Read parquetbundle
@@ -53,10 +54,25 @@ label_df[LABEL_COL] = (
 )
 label_df[LABEL_COL] = label_df[LABEL_COL].replace("", np.nan)
 label_df = label_df.dropna(subset=[LABEL_COL])
+
+# --- Filter out rare classes ---
+initial_protein_count = len(label_df)
+initial_family_count = label_df[LABEL_COL].nunique()
+
+class_counts = label_df[LABEL_COL].value_counts()
+valid_classes = class_counts[class_counts >= MIN_PROTEINS_PER_CLASS].index
+label_df = label_df[label_df[LABEL_COL].isin(valid_classes)]
+
+dropped_proteins = initial_protein_count - len(label_df)
+dropped_families = initial_family_count - len(valid_classes)
+# ------------------------------
+
 labelled_ids = set(label_df["identifier"].astype(str))
 
-print(f"  Proteins with labels : {len(labelled_ids)}")
-print(f"  Dropped (no label)   : {6436 - len(labelled_ids)}")
+print(f"  Proteins with labels : {initial_protein_count}")
+print(f"  Dropped (no label)   : {6436 - initial_protein_count}")
+print(f"  Dropped rare classes (<{MIN_PROTEINS_PER_CLASS}) : {dropped_families} families ({dropped_proteins} proteins)")
+print(f"  Final active proteins: {len(labelled_ids)}")
 
 # =============================================================
 # 3. Read H5 embeddings  (load as float16 to halve footprint,
@@ -117,13 +133,7 @@ def knn_recall_at_k(neighbors_gt, neighbors_proj, k):
     return float(hits.mean() / k)
 
 def trustworthiness_at_k(neighbors_highd, neighbors_proj, k):
-    """Approximate trustworthiness.
-
-    For neighbors returned by the projection that are *not* in the
-    stored high-d list we assign rank = K_STORED as a conservative
-    upper bound (i.e. they are treated as if they were just outside
-    the stored window, which underestimates the penalty slightly).
-    """
+    """Approximate trustworthiness."""
     K_stored = neighbors_highd.shape[1]
     penalty  = 0.0
     for i in range(N):
@@ -160,8 +170,6 @@ def compute_silhouette(X, labels, metric="euclidean"):
     return float(silhouette_score(
         X, labels,
         metric=metric,
-        sample_size=min(3000, N),   # keep under 3k for Colab RAM
-        random_state=42,
     ))
 
 # =============================================================
@@ -187,7 +195,6 @@ pca      = PCA(n_components=N_PCA_COMPONENTS, svd_solver="arpack", random_state=
 emb_pca  = pca.fit_transform(embeddings.astype(np.float32))
 emb_pca  = normalize(emb_pca, norm="l2")
 neighbors_pca50 = get_neighbors(emb_pca, metric="cosine")
-# keep emb_pca for silhouette; free normalized copy after knn
 gc.collect()
 
 # =============================================================
@@ -201,8 +208,6 @@ print("\nComputing metrics for ground truth spaces...")
 knn_acc["Full 1024-d"]             = [knn_accuracy_at_k(neighbors_full,  labels_int, k) for k in K_VALUES]
 knn_acc[f"PCA-{N_PCA_COMPONENTS}"] = [knn_accuracy_at_k(neighbors_pca50, labels_int, k) for k in K_VALUES]
 
-# For silhouette we pass the PCA coords (no N×N matrix needed with metric='euclidean')
-# For full-dim, sample-based silhouette on the float16 embeddings
 silhouette["Full 1024-d"]             = compute_silhouette(embeddings.astype(np.float32), labels_int, metric="cosine")
 silhouette[f"PCA-{N_PCA_COMPONENTS}"] = compute_silhouette(emb_pca, labels_int, metric="euclidean")
 del emb_pca; gc.collect()
@@ -226,7 +231,6 @@ for proj_name in projection_names:
     dims   = ["x", "y"] if subset["z"].isna().all() else ["x", "y", "z"]
     coords = subset[dims].values.astype(np.float32)
 
-    # NearestNeighbors on low-d coords — very cheap
     neighbors_proj = get_neighbors(coords, metric="euclidean")
 
     knn_acc[sname]    = [knn_accuracy_at_k(neighbors_proj, labels_int, k) for k in K_VALUES]
@@ -248,7 +252,6 @@ for proj_name in projection_names:
 
     del neighbors_proj, coords; gc.collect()
 
-# Free the large neighbor arrays now that all projections are done
 del neighbors_full, neighbors_pca50, embeddings; gc.collect()
 
 # =============================================================
@@ -345,7 +348,9 @@ ax.bar_label(bars, fmt="%.4f", padding=4, fontsize=10)
 ax.set_title(f"Silhouette Score ({LABEL_COL})", fontsize=13, fontweight="bold")
 ax.set_ylabel("Score", fontsize=11); ax.set_xlabel("Space", fontsize=11)
 ax.tick_params(axis="x", rotation=15)
-ax.grid(True, axis="y", alpha=0.3); ax.spines[["top", "right"]].set_visible(False)
+ax.grid(True, axis="y", alpha=0.3)
+ax.spines[["top", "right"]].set_visible(False)
+
 fig.tight_layout()
 fig.savefig(OUT_DIR / "silhouette.png", dpi=150, bbox_inches="tight")
 plt.close(fig)
