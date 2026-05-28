@@ -42,7 +42,6 @@ protspace prepare -i embeddings.h5 -m pca2,umap2 -o output
 
 # From HDF5 embeddings using rhoPCA
 # --background (required if -m rhoPCA2/3 is included): selects the background embedding set
-
 protspace prepare -i embeddings.h5 -m rhopca2,pca2,umap2 --background background_embeddings.h5 -o output
 
 # From FASTA (auto-embeds via Biocentral API)
