@@ -40,8 +40,10 @@ pip install protspace
 # From HDF5 embeddings
 protspace prepare -i embeddings.h5 -m pca2,umap2 -o output
 
-# From HDF5 embeddings
-protspace prepare -i embeddings.h5 -m rhoßca2,pca2,umap2 --background background_embeddings.h5 -o output
+# From HDF5 embeddings using rhoPCA
+# --background (required if -m rhoPCA2/3 is included): selects the background embedding set
+
+protspace prepare -i embeddings.h5 -m rhopca2,pca2,umap2 --background background_embeddings.h5 -o output
 
 # From FASTA (auto-embeds via Biocentral API)
 protspace prepare -i sequences.fasta -e prot_t5 -m pca2 -o output
@@ -52,10 +54,20 @@ protspace prepare -i sequences.fasta -e prot_t5,esm2_650m,ankh_base -m pca2,umap
 # Combine datasets (same embedding name → proteins are unioned)
 protspace prepare -i species_a.h5:prot_t5 -i species_b.h5:prot_t5 -m umap2 -o output
 
-# Evaluate projection quality and save plots to output/eval/<embedding_name>/
-# --label selects the annotation column used for supervised metrics (default: protein_families, by default the label classes are cleaned by only retaining everything up to the first "|" e.g "scoloptoxin-04 family|IC" -> "scoloptoxin-04 family")
-# --filter keeps only label classes with at least this many proteins (All proteins belongig to a protien family with less than 50 entries are fildered in the example below)
-protspace prepare -i embeddings.h5 -m pca2,umap2 -a default --eval --label protein_families --filter 50 -o output
+# Quality Evaluation via `--eval`
+#   --eval:    Evaluate projection quality and save plots to output/eval/<embedding_name>/
+#   --label (default: protein_families):   Annotation column for supervised metrics 
+#             Note: Truncates at the first "|" (e.g., "name|ID" -> "name")
+#   --filter (default: 0):  Minimum protein count per label class to retain (e.g., 50)
+#             Example: All proteins belonging to protein families with less than 50 entries are filtered 
+protspace prepare \
+  -i embeddings.h5 \
+  -m pca2,umap2 \
+  -a default \
+  --eval \
+  --label protein_families \
+  --filter 50 \
+  -o output
 ```
 
 ### 2. Explore results
