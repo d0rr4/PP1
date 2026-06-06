@@ -41,7 +41,10 @@ class DimensionReductionConfig:
         random_state: Random seed for reproducibility (>= 0)
     """
 
-    n_components: int = field(default=2, metadata={"allowed": [2, 3]})
+    # change needed to enable rhoPCA50+umap2
+    #n_components: int = field(default=2, metadata={"allowed": [2, 3]})
+    n_components: int = field(default=2, metadata={"gt": 0})
+    
     n_neighbors: int = field(default=15, metadata={"gt": 0})
     metric: METRIC_TYPES = field(
         default="euclidean", metadata={"allowed": list(get_args(METRIC_TYPES))}

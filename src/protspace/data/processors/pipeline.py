@@ -26,6 +26,22 @@ from protspace.utils.constants import MDS_NAME
 
 logger = logging.getLogger(__name__)
 
+class ChainedMethodSpec:
+    """A wrapper to hold multiple MethodSpecs in a sequential pipeline chain."""
+    def __init__(self, stages: list, raw_string: str):
+        self.stages = stages
+        self.method = raw_string  # E.g. "rhopca50+umap2"
+        self.dims = stages[-1].dims  # The final output dimensions
+        self.overrides_dict = {}     # Overrides are handled per-stage internally
+
+    def __hash__(self):
+        return hash(self.method)
+
+    def __eq__(self, other):
+        if not isinstance(other, ChainedMethodSpec):
+            return False
+        return self.method == other.method
+
 
 @dataclass(frozen=True)
 class ReducerParams:
@@ -98,8 +114,20 @@ def _coerce_value(key: str, raw: str) -> int | float | str:
         return float(raw)
     return raw
 
+def parse_method_spec(method_str: str):
+    """Parses strings like 'umap2:n_neighbors=50' or 'rhopca50+umap2'.
+       Returns a list of MethodSpec objects if chained, or a single object.
+    """
+    # Check if this is a chained method composition
+    if '+' in method_str:
+        parts = method_str.split('+')
+        # Parse each individual stage sequentially
+        stages = [parse_single_method_spec(p) for p in parts if p.strip()]
+        return ChainedMethodSpec(stages=stages, raw_string=method_str)
+    else:
+        return parse_single_method_spec(method_str)
 
-def parse_method_spec(method_spec: str) -> MethodSpec:
+def parse_single_method_spec(method_spec: str) -> MethodSpec:
     """Parse a method spec string into a MethodSpec.
 
     Examples:
@@ -652,70 +680,97 @@ class ReductionPipeline:
                 continue
 
             for spec in self.config.methods:
-                method, dims = spec.method, spec.dims
+                # parsing chains:
+                if hasattr(spec, "stages"): 
+                    stages = spec.stages
+                elif "+" in spec.method:     
+                    stages = [spec]  
+                else:
+                    stages = [spec]
+                current_input_data = emb_set.data
+                chain_reduction = None
+                chain_methods_executed = []
+                
+                # Combined metadata tracking for the whole chain
+                #combined_method_name = "+".join([s.method for s in stages])
+                combined_method_name = "+".join(str(stage) for stage in stages)
+                final_dims = stages[-1].dims
 
-                if method not in self.base.reducers and method.lower() != "rhopca":
-                    logger.warning(f"Unknown method: {method}. Skipping.")
-                    continue
-
-                # Merge global defaults with per-method overrides
-                effective_params = {**global_params, **spec.overrides_dict}
-
-                # Build param suffix for disambiguation
+                # Check cache for the WHOLE chain first before running computations
                 param_suffix = disambiguation_suffix(spec, method_counts)
-
                 cached = self._load_cached_projection(
-                    emb_set.name, method, dims, effective_params, param_suffix
+                    emb_set.name, combined_method_name, final_dims, global_params, param_suffix
                 )
+
                 if cached:
                     cached["source_embedding"] = emb_set.name
                     all_reductions.append(cached)
                     cached_projections.append(
-                        f"{method.upper()} {dims} ({emb_set.name})"
+                        f"{combined_method_name.upper()} {final_dims} ({emb_set.name})"
                     )
                     continue
 
-                ######################################
-                # Adding rho-PCA
-                if method.lower().startswith("rhopca"):
-                    if not self.config.background_path:
-                        raise ValueError(
-                            "rhoPCA requires a background matrix configuration. "
-                            "Please provide it via the --background CLI flag."
-                        )
-                    import h5py
-                    logger.info(f"Loading background dataset from: {self.config.background_path}")
+                for idx, stage_spec in enumerate(stages):
+                    method, dims = stage_spec.method, stage_spec.dims
 
-                    with h5py.File(self.config.background_path, "r") as hf:
-                        #print("Opened the file!!")
-                        # If keys are individual protein IDs, vstack them into a 2D matrix
-                        first_key = list(hf.keys())[0]
-                        if hf[first_key].ndim == 1:
-                            background_matrix = np.vstack([hf[key][:] for key in hf.keys()])
-                        else:
-                            background_matrix = np.array(hf[first_key])
+                    if method not in self.base.reducers and method.lower() != "rhopca":
+                        logger.warning(f"Unknown method: {method}. Skipping stage.")
+                        continue
+                    effective_params = {**global_params, **stage_spec.overrides_dict}
+                    
+                    is_intermediate_step = (idx < len(stages) - 1)
+                    if is_intermediate_step:
+                        # Tell the reducer config validation to bypass the [2, 3] check
+                        effective_params["validate_dims"] = False
+                    #################################################################
+                    # rhoPCA
+                    if method.lower().startswith("rhopca"):
+                        if not self.config.background_path:
+                            raise ValueError(
+                                "rhoPCA requires a background matrix configuration. "
+                                "Please provide it via the --background CLI flag."
+                            )
+                        import h5py
+                        import numpy as np
+                        logger.info(f"Loading background dataset from: {self.config.background_path}")
 
-                    # Explicitly inject BOTH fields into effective_params dictionary
-                    effective_params["background"] = self.config.background_path
-                    #print("Saving the data as a param!")
-                    effective_params["background_matrix"] = background_matrix
-                ######################################
+                        with h5py.File(self.config.background_path, "r") as hf:
+                            first_key = list(hf.keys())[0]
+                            if hf[first_key].ndim == 1:
+                                background_matrix = np.vstack([hf[key][:] for key in hf.keys()])
+                            else:
+                                background_matrix = np.array(hf[first_key])
+
+                        effective_params["background"] = self.config.background_path
+                        effective_params["background_matrix"] = background_matrix
+                    #################################################################
+
+                    logger.info(f"Applying step {idx+1}/{len(stages)}: {method.upper()} {dims} to data shape {current_input_data.shape}")
+                    
+                    # Compute current stage reduction
+                    chain_reduction = _run_with_overridden_config(
+                        self.base, effective_params, method, dims, current_input_data
+                    )
 
 
-                logger.info(f"Applying {method.upper()} {dims} to '{emb_set.name}'")
-                reduction = _run_with_overridden_config(
-                    self.base, effective_params, method, dims, emb_set.data
-                )
-
-                reduction["name"] = format_projection_name(
-                    emb_set.name, method, dims, param_suffix
-                )
-                reduction["source_embedding"] = emb_set.name
-                all_reductions.append(reduction)
-                self._save_projection_cache(
-                    emb_set.name, method, dims, reduction, effective_params
-                )
-                computed_count += 1
+                    if "data" in chain_reduction:
+                        current_input_data = chain_reduction["data"]
+                    elif "embeddings" in chain_reduction:
+                        current_input_data = chain_reduction["embeddings"]
+                    else:
+                        # Fallback if the reduction returns a raw array or custom format
+                        current_input_data = chain_reduction 
+                if chain_reduction is not None:
+                    chain_reduction["name"] = format_projection_name(
+                        emb_set.name, combined_method_name, final_dims, param_suffix
+                    )
+                    chain_reduction["source_embedding"] = emb_set.name
+                    
+                    all_reductions.append(chain_reduction)
+                    self._save_projection_cache(
+                        emb_set.name, combined_method_name, final_dims, chain_reduction, global_params
+                    )
+                    computed_count += 1
 
         if cached_projections:
             logger.warning(
