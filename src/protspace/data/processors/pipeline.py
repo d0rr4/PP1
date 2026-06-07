@@ -123,8 +123,15 @@ def parse_method_spec(method_str: str):
         parts = method_str.split('+')
         # Parse each individual stage sequentially
         stages = [parse_single_method_spec(p) for p in parts if p.strip()]
+        dims = stages[-1].dims
+        if dims != 2 and dims != 3:
+            raise ValueError(f"Chained methods must end with 2 or 3 dimensions: '{method_str}'")
         return ChainedMethodSpec(stages=stages, raw_string=method_str)
     else:
+        stage = [parse_single_method_spec(method_str)]
+        dims = stage[-1].dims
+        if dims != 2 and dims != 3:
+            raise ValueError(f"Dimensions must be 2 or 3: '{method_str}'")
         return parse_single_method_spec(method_str)
 
 def parse_single_method_spec(method_spec: str) -> MethodSpec:
