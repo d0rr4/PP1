@@ -325,6 +325,9 @@ class rhoPCAReducer(DimensionReducer):
         scale_var = getattr(self.config, "scale_variance", True)
         dims = getattr(self.config, "n_components", 2)
         
+        # testing
+        #print(f"Doing rhoPCA with dims: {dims}")
+        
         model = rhoPCA(
             adata,
             contrast_column="group",
@@ -386,7 +389,8 @@ class UMAPReducer(DimensionReducer):
 
     def fit_transform(self, data: np.ndarray) -> np.ndarray:
         from umap import UMAP
-
+        # testing
+        #print(f"Doing UMAP.")
         return UMAP(
             n_components=self.config.n_components,
             n_neighbors=self.config.n_neighbors,
@@ -394,6 +398,8 @@ class UMAPReducer(DimensionReducer):
             metric=self.config.metric,
             random_state=self.config.random_state,
         ).fit_transform(data)
+        
+        
 
     def get_params(self) -> dict[str, Any]:
         return {

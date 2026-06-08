@@ -78,11 +78,26 @@ def format_projection_name(
         ("esm2_650m", "umap", 2, "n=50, d=0.1") → "ESM2-650M — UMAP 2 (n=50, d=0.1)"
     """
     source_display = MODEL_DISPLAY_NAMES.get(source, source)
-    method_display = METHOD_DISPLAY_NAMES.get(method, method.upper())
-    name = f"{source_display} — {method_display} {dims}"
+    
+    if "+" in method:
+        def _display_part(part: str) -> str:
+            base = "".join(filter(str.isalpha, part))
+            digits = "".join(filter(str.isdigit, part))
+            display_base = METHOD_DISPLAY_NAMES.get(base, base.upper() if base else part.upper())
+            return f"{display_base}{digits}"
+
+        method_display = " + ".join(_display_part(part) for part in method.split("+"))
+        name = f"{source_display} — {method_display}"
+    else:
+        method_display = METHOD_DISPLAY_NAMES.get(method, method.upper())
+        name = f"{source_display} — {method_display} {dims}"
     if param_suffix:
         name += f" ({param_suffix})"
     return name
+
+
+
+
 
 
 @dataclass
