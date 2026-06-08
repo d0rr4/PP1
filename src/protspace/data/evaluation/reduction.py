@@ -237,8 +237,8 @@ def _evaluate_single_embedding(
     emb_pca = pca.fit_transform(embeddings)
     pca_neighbors = _neighbors(normalize(emb_pca, norm="l2"), k_stored, "cosine")
 
-    full_name = f"Full {embeddings.shape[1]}-d"
-    pca_name = f"PCA-{pca_components}"
+    full_name = f"Original ({embeddings.shape[1]})"
+    pca_name = f"PCA{pca_components}"
 
     unsupervised: dict[str, dict[str, Any]] = {}
     knn_accuracy: dict[str, list[float]] = {}
@@ -257,7 +257,7 @@ def _evaluate_single_embedding(
     projection_entries: list[tuple[str, dict[str, Any]]] = []
     seen_labels: set[str] = set()
     for reduction in reductions:
-        label = _projection_label(reduction["name"])
+        label = _projection_label(reduction["name"], emb_set.name)
         if label in seen_labels:
             suffix = 2
             while f"{label} [{suffix}]" in seen_labels:
@@ -373,8 +373,25 @@ def _print_label_summary(
     )
 
 
-def _projection_label(projection_name: str) -> str:
-    return projection_name.strip()
+def _projection_label(projection_name: str, source_embedding: str = "") -> str:
+    """Return a clean display label for a projection.
+
+    Strips the source-embedding prefix (e.g. ``"prott5 - "``) and any
+    internal spaces so that labels like ``"prott5 - UMAP 2"`` become
+    ``"UMAP2"``.
+    """
+    label = projection_name.strip()
+    if source_embedding:
+        # Try all common separator variants between the embedding name and the
+        # projection method name, longest first to avoid partial matches.
+        for sep in (" - ", " -", "- ", "-"):
+            candidate = f"{source_embedding}{sep}"
+            if label.startswith(candidate):
+                label = label[len(candidate):].strip()
+                break
+    # Remove spaces so e.g. "UMAP 2" → "UMAP2", "t-SNE 2" → "t-SNE2"
+    label = label.replace(" ", "")
+    return label
 
 
 def _valid_k_values(n_samples: int, k_stored: int) -> list[int]:
