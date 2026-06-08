@@ -35,6 +35,7 @@ METHOD_DISPLAY_NAMES: dict[str, str] = {
     "pacmap": "PaCMAP",
     "mds": "MDS",
     "localmap": "LocalMAP",
+    "rhopca": "rhoPCA",
 }
 
 
@@ -89,8 +90,11 @@ def format_projection_name(
         method_display = " + ".join(_display_part(part) for part in method.split("+"))
         name = f"{source_display} — {method_display}"
     else:
-        method_display = METHOD_DISPLAY_NAMES.get(method, method.upper())
-        name = f"{source_display} — {method_display} {dims}"
+        base = "".join(filter(str.isalpha, method))
+        digits = "".join(filter(str.isdigit, method))
+        method_display = METHOD_DISPLAY_NAMES.get(base or method, (base or method).upper())
+        dim_str = digits if digits else str(dims)
+        name = f"{source_display} — {method_display} {dim_str}"
     if param_suffix:
         name += f" ({param_suffix})"
     return name

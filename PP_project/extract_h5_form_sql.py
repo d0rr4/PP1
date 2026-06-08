@@ -1,78 +1,60 @@
-import psycopg2
 import h5py
+import psycopg2
 import numpy as np
-import io
 
-# --- CONFIGURATION ---
-DB_PARAMS = {
-    "dbname": "embeddings",
-    "user": "postgres",
-    "password": "12345", # <-- Update this
-    "host": "localhost",
-    "port": "5432"
+# Connect to your database
+conn = psycopg2.connect("dbname=embeddings user=postgres host=localhost password=12345")
+cur = conn.cursor()
+
+# Step 1: Build an in-memory lookup dictionary (Takes ~0.5 seconds)
+print("Building UniProt ID lookup map...")
+map_query = """
+    SELECT p.sequence_id, a.code 
+    FROM protein p 
+    JOIN accession a ON p.id = a.protein_id 
+    WHERE a.primary = true;
+"""
+cur.execute(map_query)
+# id_map will look like: { 1245: 'Q7Z624', 1246: 'Q7Z5W3', ... }
+id_map = {row[0]: row[1] for row in cur}
+print(f"Loaded {len(id_map)} ID mappings into memory.")
+
+# Map your model database IDs to their output filenames
+models_to_export = {
+    1: "ESM.h5",
+    2: "Prost-T5.h5",
+    3: "Prot-T5.h5",
+    4: "Ankh3-Large.h5"
 }
 
-# Mapping of ID from your DB to a filename suffix
-MODEL_MAPPING = {
-    1: "ESM",
-    2: "Prost-T5",
-    3: "Prot-T5",
-    4: "Ankh3-Large"
-}
-
-def parse_vector(vector_data):
-    """
-    Converts pgvector/halfvec format to numpy array.
-    If the data comes as a string '[0.1, 0.2]', we clean it.
-    """
-    if isinstance(vector_data, str):
-        # Remove brackets and split by comma
-        clean_str = vector_data.strip('[]').replace(' ', '')
-        return np.array([float(x) for x in clean_str.split(',')], dtype=np.float16)
-    return np.array(vector_data, dtype=np.float16)
-
-def extract_all():
-    conn = psycopg2.connect(**DB_PARAMS)
+# Step 2: Export embeddings using a blazing-fast single table query
+for model_id, filename in models_to_export.items():
+    print(f"Exporting model ID {model_id} to {filename}...")
     
-    for model_id, model_name in MODEL_MAPPING.items():
-        filename = f"{model_name}.h5"
-        print(f"--- Extracting {model_name} (ID: {model_id}) ---")
-        
-        # Open HDF5 file
-        with h5py.File(filename, 'w') as f:
-            # Use a server-side cursor to keep memory usage low
-            cur = conn.cursor(name=f'cursor_{model_id}')
-            cur.itersize = 1000
+    # Back to a fast single-table query, just adding the float conversion
+    query = """
+        SELECT sequence_id, embedding::float4[] 
+        FROM sequence_embeddings 
+        WHERE embedding_type_id = %s;
+    """
+    
+    cur.execute(query, (model_id,))
+    
+    # Save directly to the H5 file
+    with h5py.File(f"embeddings/{filename}", "w") as f:
+        for row in cur:
+            seq_id = row[0]
             
-            # Fetch sequence_id and embedding
-            cur.execute("SELECT sequence_id, embedding FROM sequence_embeddings WHERE embedding_type_id = %s", (model_id,))
+            # Map the integer sequence_id to its alphanumeric UniProt ID using Python RAM
+            uniprot_id = id_map.get(seq_id)
             
-            # Create dataset
-            dset = f.create_dataset('embeddings', (0,), maxshape=(None,), dtype=h5py.vlen_dtype(np.float16))
-            
-            count = 0
-            while True:
-                rows = cur.fetchmany(1000)
-                if not rows:
-                    break
+            # Skip if this sequence doesn't have a valid primary accession mapping
+            if not uniprot_id:
+                continue
                 
-                for seq_id, raw_emb in rows:
-                    emb_array = parse_vector(raw_emb)
-                    # For a real implementation, you might want to save seq_id as well
-                    # For now, we are appending the raw embedding
-                    # Note: H5py vlen_dtype handling
-                    
-                    # Logic to append to dataset
-                    dset.resize((dset.shape[0] + 1,))
-                    dset[-1] = emb_array
-                    
-                count += len(rows)
-                print(f"  Processed {count} embeddings...")
-            
-            cur.close()
-            print(f"Success! Saved to {filename}")
+            embedding_vector = np.array(row[1], dtype=np.float32)
+            f.create_dataset(uniprot_id, data=embedding_vector)
 
-    conn.close()
-
-if __name__ == "__main__":
-    extract_all()
+cur.close()
+conn.close()
+print("All embedding files fixed and ready at maximum speed!")
