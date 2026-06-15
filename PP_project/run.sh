@@ -1,19 +1,12 @@
 #!/bin/bash
 
-echo "Starting SwissProt Prot-T5..."
-protspace prepare \
-    -i embeddings/per-protein.h5:prott5 \
-    -m ,pca2,umap2,tsne2  \
-    -o protspace_results/Prot-T5 \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
+
+
 
 echo "Starting Multi Prot-T5..."
 protspace prepare \
     -i embeddings/Prot-T5.h5:prott5 \
-    -m rhopca2,pca2,umap2,tsne2  \
+    -m pca2,umap2,tsne2  \
     -o protspace_results/Prot-T5 \
     --refetch annotations,projections \
     --eval \
@@ -49,5 +42,19 @@ protspace prepare \
     --eval \
     --label protein_families \
     --filter 50
+
+
+
+echo "Starting CATH..."
+protspace prepare \
+    -i embeddings/cath-dataset-nonredundant-S40_prot_t5.h5:prott5 \
+    -m pca2,umap2,tsne2  \
+    -o protspace_results/CATH \
+    --refetch annotations,projections \
+    --eval \
+    --label protein_families \
+    --filter 50
+
+
 
 echo "All jobs completed!"

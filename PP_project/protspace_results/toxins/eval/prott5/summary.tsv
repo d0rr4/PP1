@@ -1,27 +1,20 @@
-space	type	recall_mean	trust_mean	cont_mean	spearman_dist_corr	density_corr	knn_acc_mean	silhouette	concordex
-RHOPCA22 - Full	unsupervised	0.1838	0.9402	0.9641	0.4582	0.4993			
-RHOPCA22 - PCA	unsupervised	0.1839	0.9412	0.9643	0.597	0.5852			
-PCA22 - Full	unsupervised	0.2336	0.9538	0.9733	0.6769	0.5622			
-PCA22 - PCA	unsupervised	0.2329	0.9549	0.9734	0.6913	0.6886			
-UMAP22 - Full	unsupervised	0.4579	0.9896	0.9931	0.2597	0.4446			
-UMAP22 - PCA	unsupervised	0.4509	0.9905	0.9926	0.3253	0.3104			
-TSNE22 - Full	unsupervised	0.6551	0.9941	0.9944	0.4937	0.6085			
-TSNE22 - PCA	unsupervised	0.6336	0.9945	0.9938	0.6085	0.5072			
-RHOPCA50+UMAP2 - Full	unsupervised	0.4334	0.9883	0.9909	0.3055	0.466			
-RHOPCA50+UMAP2 - PCA	unsupervised	0.4297	0.9893	0.9908	0.2945	0.3276			
-RHOPCA20+UMAP2 - Full	unsupervised	0.4053	0.9861	0.989	0.2468	0.4989			
-RHOPCA20+UMAP2 - PCA	unsupervised	0.4045	0.9875	0.9893	0.2408	0.375			
-PCA50+UMAP2 - Full	unsupervised	0.4499	0.9891	0.9917	0.212	0.5619			
-PCA50+UMAP2 - PCA	unsupervised	0.4675	0.9909	0.9925	0.2663	0.3773			
-PCA20+UMAP2 - Full	unsupervised	0.4243	0.9874	0.9908	0.3708	0.5572			
-PCA20+UMAP2 - PCA	unsupervised	0.4436	0.9895	0.9918	0.3845	0.4075			
-Original (1024)	supervised						0.9513	0.2298	13.8771
-PCA50	supervised						0.9492	0.1984	13.8032
-RHOPCA22	supervised						0.6338	-0.0541	8.4014
-PCA22	supervised						0.6927	-0.2326	8.9811
-UMAP22	supervised						0.9332	0.0948	13.8155
-TSNE22	supervised						0.9481	-0.0262	13.947
-RHOPCA50+UMAP2	supervised						0.9347	0.0994	13.7522
-RHOPCA20+UMAP2	supervised						0.9135	0.078	13.0948
-PCA50+UMAP2	supervised						0.9295	0.0858	13.5304
-PCA20+UMAP2	supervised						0.9045	0.0088	12.9692
+space	type	recall_mean	trust_mean	cont_mean	knn_acc_mean	silhouette	concordex
+rhoPCA2 - Full	unsupervised	0.1836	0.9401	0.964			
+PCA2 - Full	unsupervised	0.2335	0.9538	0.9732			
+UMAP2 - Full	unsupervised	0.4579	0.9896	0.9931			
+t-SNE2 - Full	unsupervised	0.6551	0.9941	0.9944			
+rhoPCA50+UMAP2 - Full	unsupervised	0.4323	0.9883	0.9912			
+rhoPCA50+t-SNE2 - Full	unsupervised	0.6	0.9924	0.9927			
+PCA50+UMAP2 - Full	unsupervised	0.4445	0.9892	0.9919			
+PCA50+t-SNE2 - Full	unsupervised	0.6204	0.9935	0.9936			
+Original (1024)	supervised				0.9513	0.2298	13.8771
+PCA50	supervised				0.9492	0.1984	13.8032
+PCA10	supervised				0.9194	0.1439	13.1502
+rhoPCA2	supervised				0.6338	-0.0544	8.3978
+PCA2	supervised				0.6927	-0.2326	8.9811
+UMAP2	supervised				0.9332	0.0948	13.8155
+t-SNE2	supervised				0.9481	-0.0262	13.947
+rhoPCA50+UMAP2	supervised				0.9346	0.0696	13.7683
+rhoPCA50+t-SNE2	supervised				0.9422	0.132	13.8784
+PCA50+UMAP2	supervised				0.928	0.0548	13.5293
+PCA50+t-SNE2	supervised				0.94	-0.0464	13.785

@@ -9,10 +9,13 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
+from matplotlib.colors import Normalize
+from matplotlib.cm import ScalarMappable
 from scipy.spatial.distance import pdist, squareform
-from scipy.stats import spearmanr
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 from sklearn.neighbors import NearestNeighbors
@@ -22,7 +25,6 @@ from protspace.data.loaders import EmbeddingSet
 from protspace.data.loaders.embedding_set import MODEL_DISPLAY_NAMES
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +43,14 @@ PROJECTION_COLORS = (
     "#CCBB44",  # yellow
     "#228833",  # green
 )
-BASE_COLORS = {"Full": "#000000", "PCA": "#666666"}
-LINESTYLES_GT = {"Full": "-", "PCA": "--"}
+BASE_COLORS = {"Full": "#000000", "PCA": "#666666", "PCA10": "#999999"}
+LINESTYLES_GT = {"Full": "-"}
 
-# Maximum number of points used for distance-matrix-based metrics (Spearman,
-# Density).  These metrics require O(n²) memory; subsampling keeps RAM sane.
-_MAX_DIST_SAMPLES = 2000
+# Hard cap on the number of points used for ALL metrics.  When the labelled
+# set exceeds this size a single stratified random subsample is drawn once
+# and every subsequent computation (neighbour graphs, silhouette, CONCORDEX,
+# kNN accuracy, line plots, heatmaps) operates on that fixed subset.
+_MAX_DIST_SAMPLES = 10_000
 
 
 def run_reduction_evaluation(
@@ -67,11 +71,11 @@ def run_reduction_evaluation(
             recall.png
             trustworthiness.png
             continuity.png
-            spearman_dist_corr.png
-            density_corr.png
             knn_accuracy.png
             silhouette.png
             concordex.png
+            heatmap_unsupervised.png
+            heatmap_supervised.png
     """
     if min_class_size < 0:
         raise ValueError("--filter must be >= 0.")
@@ -170,6 +174,51 @@ def _group_reductions_by_embedding(
     return grouped
 
 
+def _stratified_subsample(
+    indices: list[int],
+    labels_int: np.ndarray,
+    max_samples: int,
+    rng: np.random.Generator,
+) -> tuple[list[int], np.ndarray]:
+    """Return a stratified random subsample capped at *max_samples*.
+
+    Samples are drawn proportionally per class so that the class distribution
+    of the subsample mirrors the full set as closely as possible.  The
+    original ordering within each class is preserved.
+
+    Args:
+        indices:     Original positional indices into the embedding matrix.
+        labels_int:  Integer class labels aligned with *indices*.
+        max_samples: Hard upper bound on the returned sample size.
+        rng:         NumPy random generator (for reproducibility).
+
+    Returns:
+        A (sub_indices, sub_labels) tuple, both sorted by their position in
+        the original *indices* list.
+    """
+    n = len(indices)
+    if n <= max_samples:
+        return indices, labels_int
+
+    classes, counts = np.unique(labels_int, return_counts=True)
+    # Allocate quota per class proportionally, ensuring at least 1 per class.
+    quota = np.maximum(1, np.round(counts / n * max_samples).astype(int))
+    # If rounding pushed the total over the cap, trim from the largest classes.
+    while quota.sum() > max_samples:
+        quota[quota.argmax()] -= 1
+
+    chosen: list[int] = []
+    for cls, q in zip(classes, quota):
+        cls_positions = np.where(labels_int == cls)[0]
+        take = min(q, len(cls_positions))
+        chosen.extend(rng.choice(cls_positions, size=take, replace=False).tolist())
+
+    chosen_sorted = sorted(chosen)
+    sub_indices = [indices[i] for i in chosen_sorted]
+    sub_labels = labels_int[chosen_sorted]
+    return sub_indices, sub_labels
+
+
 def _evaluate_single_embedding(
     *,
     emb_set: EmbeddingSet,
@@ -223,25 +272,49 @@ def _evaluate_single_embedding(
             "not enough proteins after label filtering (need at least 3 proteins)"
         )
 
+    encoder = LabelEncoder()
+    all_labels_int = encoder.fit_transform(labels.values)
+
+    # ------------------------------------------------------------------
+    # Universal subsampling — enforced here, once, before any computation.
+    # Every metric, neighbour graph, and plot operates on this fixed subset.
+    # ------------------------------------------------------------------
+    rng = np.random.default_rng(42)
+    n_full = len(active_ids)
+    all_indices = [id_to_idx[identifier] for identifier in active_ids]
+
+    if n_full > _MAX_DIST_SAMPLES:
+        logger.info(
+            "Subsampling %d → %d points for '%s' (stratified, seed=42).",
+            n_full,
+            _MAX_DIST_SAMPLES,
+            emb_set.name,
+        )
+        indices, labels_int = _stratified_subsample(
+            all_indices, all_labels_int, _MAX_DIST_SAMPLES, rng
+        )
+        n_eval = len(indices)
+    else:
+        indices, labels_int = all_indices, all_labels_int
+        n_eval = n_full
+
     logger.info(
-        "Evaluation '%s': labels=%d, dropped_unlabeled=%d, dropped_by_filter=%d",
+        "Evaluation '%s': labels=%d, dropped_unlabeled=%d, dropped_by_filter=%d, "
+        "eval_n=%d",
         emb_set.name,
         proteins_with_labels,
         proteins_with_na,
         proteins_below_filter,
+        n_eval,
     )
 
-    indices = [id_to_idx[identifier] for identifier in active_ids]
     embeddings = emb_set.data[indices].astype(np.float32, copy=False)
 
-    encoder = LabelEncoder()
-    labels_int = encoder.fit_transform(labels.values)
-
-    k_stored = min(DEFAULT_K_STORED, len(active_ids) - 1)
+    k_stored = min(DEFAULT_K_STORED, n_eval - 1)
     if k_stored < 1:
         raise ValueError("not enough proteins to compute nearest-neighbor metrics")
 
-    k_values = _valid_k_values(len(active_ids), k_stored)
+    k_values = _valid_k_values(n_eval, k_stored)
     if not k_values:
         raise ValueError("no valid k values for trustworthiness/continuity")
 
@@ -249,7 +322,7 @@ def _evaluate_single_embedding(
     pca_components = min(
         DEFAULT_PCA_COMPONENTS,
         embeddings.shape[1],
-        embeddings.shape[0] - 1,
+        n_eval - 1,
     )
     if pca_components < 1:
         raise ValueError("cannot compute PCA ground truth for this embedding set")
@@ -258,28 +331,15 @@ def _evaluate_single_embedding(
     emb_pca = pca.fit_transform(embeddings)
     pca_neighbors = _neighbors(normalize(emb_pca, norm="l2"), k_stored, "cosine")
 
+    pca10_components = min(10, embeddings.shape[1], n_eval - 1)
+    if pca10_components >= 1:
+        pca10 = PCA(n_components=pca10_components, svd_solver="auto", random_state=42)
+        emb_pca10 = pca10.fit_transform(embeddings)
+        pca10_neighbors = _neighbors(normalize(emb_pca10, norm="l2"), k_stored, "cosine")
+
     full_name = f"Original ({embeddings.shape[1]})"
     pca_name = f"PCA{pca_components}"
-
-    # ------------------------------------------------------------------
-    # Subsample indices for O(n²) distance-matrix metrics
-    # ------------------------------------------------------------------
-    n = len(active_ids)
-    rng = np.random.default_rng(42)
-    if n > _MAX_DIST_SAMPLES:
-        sub_idx = rng.choice(n, size=_MAX_DIST_SAMPLES, replace=False)
-        logger.info(
-            "Subsampling %d / %d points for Spearman / Density metrics.",
-            _MAX_DIST_SAMPLES,
-            n,
-        )
-    else:
-        sub_idx = np.arange(n)
-
-    emb_sub = normalize(embeddings[sub_idx], norm="l2")
-    pca_sub = normalize(emb_pca[sub_idx], norm="l2")
-    dist_full = squareform(pdist(emb_sub, metric="cosine"))
-    dist_pca = squareform(pdist(pca_sub, metric="cosine"))
+    pca10_name = f"PCA{pca10_components}" if pca10_components >= 1 else ""
 
     # ------------------------------------------------------------------
     # Per-space scalar metrics
@@ -289,19 +349,26 @@ def _evaluate_single_embedding(
     silhouette: dict[str, float] = {}
     concordex: dict[str, float] = {}
 
-    # kNN accuracy, silhouette, CONCORDEX for the reference spaces
     knn_accuracy[full_name] = [
         _knn_accuracy_at_k(full_neighbors, labels_int, k) for k in k_values
     ]
     knn_accuracy[pca_name] = [
         _knn_accuracy_at_k(pca_neighbors, labels_int, k) for k in k_values
     ]
+    if pca10_components >= 1:
+        knn_accuracy[pca10_name] = [
+            _knn_accuracy_at_k(pca10_neighbors, labels_int, k) for k in k_values
+        ]
 
     silhouette[full_name] = _safe_silhouette(embeddings, labels_int, metric="cosine")
     silhouette[pca_name] = _safe_silhouette(emb_pca, labels_int, metric="euclidean")
+    if pca10_components >= 1:
+        silhouette[pca10_name] = _safe_silhouette(emb_pca10, labels_int, metric="euclidean")
 
     concordex[full_name] = _concordex_score(full_neighbors, labels_int, k=k_values[-1])
     concordex[pca_name] = _concordex_score(pca_neighbors, labels_int, k=k_values[-1])
+    if pca10_components >= 1:
+        concordex[pca10_name] = _concordex_score(pca10_neighbors, labels_int, k=k_values[-1])
 
     # ------------------------------------------------------------------
     # Build projection entries
@@ -324,7 +391,7 @@ def _evaluate_single_embedding(
     }
 
     # ------------------------------------------------------------------
-    # Per-projection metrics
+    # Per-projection metrics  (indices already subsampled above)
     # ------------------------------------------------------------------
     for proj_label, reduction in projection_entries:
         coords = reduction["data"][indices].astype(np.float32, copy=False)
@@ -344,14 +411,7 @@ def _evaluate_single_embedding(
             proj_neighbors, labels_int, k=k_values[-1]
         )
 
-        # Subsampled projection coords for distance-matrix metrics
-        coords_sub = coords[sub_idx]
-        dist_proj = squareform(pdist(coords_sub, metric="euclidean"))
-
-        for gt_label, gt_neighbors, dist_gt in (
-            ("Full", full_neighbors, dist_full),
-            ("PCA", pca_neighbors, dist_pca),
-        ):
+        for gt_label, gt_neighbors in (("Full", full_neighbors),):
             line_label = f"{proj_label} - {gt_label}"
             recalls: list[float] = []
             trusts: list[float] = []
@@ -360,21 +420,18 @@ def _evaluate_single_embedding(
                 recalls.append(_knn_recall_at_k(gt_neighbors, proj_neighbors, k))
                 trusts.append(
                     _trustworthiness_at_k(
-                        gt_neighbors, proj_neighbors, k, len(active_ids)
+                        gt_neighbors, proj_neighbors, k, n_eval
                     )
                 )
                 conts.append(
                     _continuity_at_k(
-                        proj_neighbors, gt_neighbors, k, len(active_ids)
+                        proj_neighbors, gt_neighbors, k, n_eval
                     )
                 )
             unsupervised[line_label] = {
                 "recall": recalls,
                 "trust": trusts,
                 "cont": conts,
-                # New scalar cross-space metrics (single value, not per-k)
-                "spearman_dist": _spearman_dist_corr(dist_gt, dist_proj),
-                "density_corr": _density_corr(dist_gt, dist_proj),
                 "projection_label": proj_label,
                 "gt_label": gt_label,
             }
@@ -400,6 +457,7 @@ def _evaluate_single_embedding(
         projection_colors=projection_colors,
         full_name=full_name,
         pca_name=pca_name,
+        pca10_name=pca10_name,
         label_column=label_column,
     )
     _plot_silhouette(
@@ -408,6 +466,7 @@ def _evaluate_single_embedding(
         projection_colors=projection_colors,
         full_name=full_name,
         pca_name=pca_name,
+        pca10_name=pca10_name,
         label_column=label_column,
     )
     _plot_concordex(
@@ -416,94 +475,21 @@ def _evaluate_single_embedding(
         projection_colors=projection_colors,
         full_name=full_name,
         pca_name=pca_name,
+        pca10_name=pca10_name,
         label_column=label_column,
     )
-    _plot_spearman_dist_corr(
+    _plot_summary_heatmaps(
         out_dir=out_dir,
-        unsupervised=unsupervised,
-        projection_colors=projection_colors,
-    )
-    _plot_density_corr(
-        out_dir=out_dir,
-        unsupervised=unsupervised,
-        projection_colors=projection_colors,
+        k_values=k_values,
+        label_column=label_column,
+        n_full=n_full,
+        n_eval=n_eval,
     )
 
 
 # ---------------------------------------------------------------------------
-# New metric implementations
+# CONCORDEX implementation
 # ---------------------------------------------------------------------------
-
-
-def _spearman_dist_corr(dist_ref: np.ndarray, dist_proj: np.ndarray) -> float:
-    """Spearman correlation between upper-triangle pairwise distances.
-
-    Measures global structure preservation: how well the rank-order of all
-    inter-point distances in the projection matches the reference space.
-    A value of 1 means perfect rank preservation; 0 means no global structure
-    is retained.
-
-    Args:
-        dist_ref:  Square distance matrix for the reference space (n × n).
-        dist_proj: Square distance matrix for the projection (n × n).
-
-    Returns:
-        Spearman r in [-1, 1], or NaN on failure.
-    """
-    n = dist_ref.shape[0]
-    if n < 3:
-        return float("nan")
-    # Use only the upper triangle to avoid redundancy and the zero diagonal.
-    triu_idx = np.triu_indices(n, k=1)
-    ref_flat = dist_ref[triu_idx]
-    proj_flat = dist_proj[triu_idx]
-    try:
-        result = spearmanr(ref_flat, proj_flat)
-        return float(result.statistic)
-    except Exception:
-        return float("nan")
-
-
-def _density_corr(dist_ref: np.ndarray, dist_proj: np.ndarray, k: int = 10) -> float:
-    """Pearson correlation of local density estimates between two spaces.
-
-    Local density for point i is estimated as the inverse of the mean
-    distance to its k nearest neighbours (i.e. high density ↔ small mean
-    distance).  Correlating these scalars across all points checks whether
-    dense regions in the reference space remain dense — and sparse remain
-    sparse — in the projection.
-
-    Args:
-        dist_ref:  Square distance matrix for the reference space (n × n).
-        dist_proj: Square distance matrix for the projection (n × n).
-        k:         Number of neighbours used for the density estimate.
-
-    Returns:
-        Pearson r in [-1, 1], or NaN on failure.
-    """
-    n = dist_ref.shape[0]
-    k = min(k, n - 1)
-    if k < 1 or n < 3:
-        return float("nan")
-
-    def local_density(dist: np.ndarray) -> np.ndarray:
-        # For each point, sort distances (exclude self on diagonal) and take
-        # the mean of the k smallest.
-        np.fill_diagonal(dist, np.inf)
-        sorted_d = np.sort(dist, axis=1)[:, :k]
-        np.fill_diagonal(dist, 0.0)  # restore
-        mean_knn_dist = sorted_d.mean(axis=1)
-        # Avoid division by zero for perfectly overlapping points.
-        return np.where(mean_knn_dist > 0, 1.0 / mean_knn_dist, 0.0)
-
-    try:
-        dens_ref = local_density(dist_ref.copy())
-        dens_proj = local_density(dist_proj.copy())
-        if dens_ref.std() == 0 or dens_proj.std() == 0:
-            return float("nan")
-        return float(np.corrcoef(dens_ref, dens_proj)[0, 1])
-    except Exception:
-        return float("nan")
 
 
 def _concordex_score(
@@ -518,8 +504,7 @@ def _concordex_score(
     random (null) assignment based on class frequencies.
 
     A score > 1 means labels cluster better than chance; a score of 1 means
-    random; a score < 1 means anti-clustering.  We clamp to [0, 2] for
-    readability and return the raw ratio.
+    random; a score < 1 means anti-clustering.
 
     Reference: Kalinichenko et al., *Bioinformatics* (2023) — CONCORDEX.
 
@@ -539,11 +524,9 @@ def _concordex_score(
     k_use = min(k, neighbors.shape[1])
     neighbor_labels = labels[neighbors[:, :k_use]]  # (n, k_use)
 
-    # Observed: fraction of same-class neighbours per point, then mean.
     same_class = (neighbor_labels == labels[:, None]).sum(axis=1)
     observed = same_class.mean() / k_use
 
-    # Expected under random assignment: sum of squared class frequencies.
     class_freq = np.bincount(labels, minlength=n_classes) / len(labels)
     expected = float((class_freq**2).sum())
 
@@ -553,7 +536,7 @@ def _concordex_score(
 
 
 # ---------------------------------------------------------------------------
-# Existing metric implementations (unchanged)
+# Existing metric implementations
 # ---------------------------------------------------------------------------
 
 
@@ -730,12 +713,6 @@ def _write_summary(
                 "recall_mean": round(float(np.mean(metrics["recall"])), 4),
                 "trust_mean": round(float(np.mean(metrics["trust"])), 4),
                 "cont_mean": round(float(np.mean(metrics["cont"])), 4),
-                "spearman_dist_corr": round(float(metrics["spearman_dist"]), 4)
-                if not np.isnan(metrics["spearman_dist"])
-                else "",
-                "density_corr": round(float(metrics["density_corr"]), 4)
-                if not np.isnan(metrics["density_corr"])
-                else "",
                 "knn_acc_mean": "",
                 "silhouette": "",
                 "concordex": "",
@@ -749,8 +726,6 @@ def _write_summary(
                 "recall_mean": "",
                 "trust_mean": "",
                 "cont_mean": "",
-                "spearman_dist_corr": "",
-                "density_corr": "",
                 "knn_acc_mean": round(float(np.mean(acc_values)), 4),
                 "silhouette": round(float(silhouette.get(space, float("nan"))), 4),
                 "concordex": round(float(concordex.get(space, float("nan"))), 4),
@@ -758,6 +733,266 @@ def _write_summary(
         )
 
     pd.DataFrame(rows).to_csv(out_dir / "summary.tsv", sep="\t", index=False)
+
+
+# ---------------------------------------------------------------------------
+# Heatmap summary plots
+# ---------------------------------------------------------------------------
+
+# Human-readable column labels for the heatmap axes.
+_UNSUPERVISED_COL_LABELS: dict[str, str] = {
+    "recall_mean": "kNN Recall\n(mean)",
+    "trust_mean": "Trustworthiness\n(mean)",
+    "cont_mean": "Continuity\n(mean)",
+}
+_SUPERVISED_COL_LABELS: dict[str, str] = {
+    "knn_acc_mean": "kNN Accuracy\n(mean)",
+    "silhouette": "Silhouette\nScore",
+    "concordex": "CONCORDEX",
+}
+
+
+def _plot_summary_heatmaps(
+    *,
+    out_dir: Path,
+    k_values: list[int],
+    label_column: str,
+    n_full: int,
+    n_eval: int,
+) -> None:
+    """Read the just-written summary TSV and produce two polished heatmaps.
+
+    One heatmap covers unsupervised structure-preservation metrics
+    (Recall, Trustworthiness, Continuity), the other covers supervised
+    label-aware metrics (kNN Accuracy, Silhouette, CONCORDEX).  Both use
+    column-wise min-max normalisation for the colour mapping so that the
+    best value in each metric always stands out, while annotating cells
+    with the original numeric values.
+
+    The k range over which means were computed is shown in the figure
+    subtitle for the three mean-based metrics.  When subsampling was applied
+    (n_full > n_eval) the subtitle also states the effective sample size.
+    """
+    tsv_path = out_dir / "summary.tsv"
+    if not tsv_path.exists():
+        logger.warning("summary.tsv not found; skipping heatmap generation.")
+        return
+
+    df = pd.read_csv(tsv_path, sep="\t")
+
+    k_range_str = f"k ∈ {{{', '.join(str(k) for k in k_values)}}}"
+    sample_note = (
+        f" · n = {n_eval:,} (subsampled from {n_full:,})"
+        if n_eval < n_full
+        else f" · n = {n_eval:,}"
+    )
+
+    # ---- Unsupervised ----
+    df_uns = df[df["type"] == "unsupervised"].copy()
+    df_uns["space"] = df_uns["space"].str.replace(" - Full", "", regex=False)
+    uns_cols = [c for c in _UNSUPERVISED_COL_LABELS if c in df_uns.columns]
+    if not df_uns.empty and uns_cols:
+        df_uns = df_uns[["space"] + uns_cols].set_index("space")
+        df_uns.columns = [_UNSUPERVISED_COL_LABELS[c] for c in uns_cols]
+        df_uns = df_uns.apply(pd.to_numeric, errors="coerce")
+        subtitle = (
+            f"Means computed over {k_range_str}{sample_note} · "
+            f"Colour normalised column-wise"
+        )
+        _render_heatmap(
+            data=df_uns,
+            title=f"Unsupervised DR Evaluation  ·  {label_column}",
+            subtitle=subtitle,
+            out_path=out_dir / "heatmap_unsupervised.png",
+            cmap="YlGnBu",
+        )
+
+    # ---- Supervised ----
+    df_sup = df[df["type"] == "supervised"].copy()
+    sup_cols = [c for c in _SUPERVISED_COL_LABELS if c in df_sup.columns]
+    if not df_sup.empty and sup_cols:
+        df_sup = df_sup[["space"] + sup_cols].set_index("space")
+        df_sup.columns = [_SUPERVISED_COL_LABELS[c] for c in sup_cols]
+        df_sup = df_sup.apply(pd.to_numeric, errors="coerce")
+        subtitle = (
+            f"kNN Accuracy mean over {k_range_str}{sample_note} · "
+            f"Colour normalised column-wise"
+        )
+        _render_heatmap(
+            data=df_sup,
+            title=f"Supervised DR Evaluation  ·  {label_column}",
+            subtitle=subtitle,
+            out_path=out_dir / "heatmap_supervised.png",
+            cmap="YlOrRd",
+        )
+
+
+def _render_heatmap(
+    *,
+    data: pd.DataFrame,
+    title: str,
+    subtitle: str,
+    out_path: Path,
+    cmap: str,
+) -> None:
+    """Render a single publication-quality heatmap to *out_path*.
+
+    Design choices
+    --------------
+    * Crisp white grid lines separate cells.
+    * Annotation text is black on light cells and white on dark cells for
+      maximum contrast (WCAG AA).
+    * A compact horizontal colour bar sits below the axes with a label that
+      clarifies the normalisation.
+    * Typography uses a narrow sans-serif stack so long row/column names fit
+      comfortably.
+    * The figure background is white (#FFFFFF) with a subtle outer border.
+    """
+    n_rows, n_cols = data.shape
+
+    # Column-wise min-max normalisation — NaN cells stay NaN (rendered grey).
+    norm_data = (data - data.min()) / (data.max() - data.min())
+
+    # ---- Figure geometry ----
+    cell_w = 2.0          # inches per column
+    cell_h = 0.55         # inches per row
+    left_margin = 2.6     # room for row labels
+    right_margin = 0.35
+    top_margin = 1.05     # room for title + subtitle
+    bottom_margin = 1.10  # room for column labels + colour bar
+
+    fig_w = left_margin + n_cols * cell_w + right_margin
+    fig_h = top_margin + n_rows * cell_h + bottom_margin
+    fig_w = max(fig_w, 6.0)
+    fig_h = max(fig_h, 3.5)
+
+    fig = plt.figure(figsize=(fig_w, fig_h), facecolor="white")
+
+    # Axes: leave space at bottom for the colour bar.
+    cbar_height_frac = 0.06
+    cbar_pad_frac = 0.08
+    ax_bottom = (bottom_margin) / fig_h
+    ax_height = (n_rows * cell_h) / fig_h
+    ax_left = left_margin / fig_w
+    ax_width = (n_cols * cell_w) / fig_w
+
+    ax = fig.add_axes([ax_left, ax_bottom, ax_width, ax_height])
+
+    # ---- Draw cells ----
+    cm = plt.get_cmap(cmap)
+    norm = Normalize(vmin=0.0, vmax=1.0)
+
+    for row_idx in range(n_rows):
+        for col_idx in range(n_cols):
+            raw_val = data.iloc[row_idx, col_idx]
+            norm_val = norm_data.iloc[row_idx, col_idx]
+
+            if pd.isna(norm_val):
+                face_color = "#D8D8D8"
+                text_color = "#555555"
+                cell_text = "N/A"
+            else:
+                face_color = cm(norm(norm_val))
+                # Luminance-based contrast: use white text on dark cells.
+                r, g, b, _ = face_color
+                luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+                text_color = "white" if luminance < 0.45 else "#1a1a1a"
+                cell_text = f"{raw_val:.4f}"
+
+            rect = plt.Rectangle(
+                (col_idx, n_rows - row_idx - 1),
+                1, 1,
+                facecolor=face_color,
+                edgecolor="white",
+                linewidth=1.5,
+            )
+            ax.add_patch(rect)
+            ax.text(
+                col_idx + 0.5,
+                n_rows - row_idx - 0.5,
+                cell_text,
+                ha="center",
+                va="center",
+                fontsize=9.5,
+                fontweight="bold",
+                color=text_color,
+                fontfamily="DejaVu Sans",
+            )
+
+    # ---- Axes cosmetics ----
+    ax.set_xlim(0, n_cols)
+    ax.set_ylim(0, n_rows)
+    ax.set_xticks(np.arange(n_cols) + 0.5)
+    ax.set_yticks(np.arange(n_rows) + 0.5)
+    ax.set_xticklabels(
+        data.columns,
+        fontsize=9.5,
+        fontfamily="DejaVu Sans",
+        ha="center",
+        va="top",
+    )
+    ax.set_yticklabels(
+        data.index[::-1],
+        fontsize=9.5,
+        fontfamily="DejaVu Sans",
+        ha="right",
+        va="center",
+    )
+    ax.tick_params(axis="both", which="both", length=0, pad=6)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    # ---- Titles ----
+    title_y = ax_bottom + ax_height + 0.20 / fig_h
+    fig.text(
+        ax_left + ax_width / 2,
+        title_y + 0.25 / fig_h,
+        title,
+        ha="center",
+        va="bottom",
+        fontsize=14,
+        fontweight="normal",
+        fontfamily="DejaVu Sans",
+        color="#111111",
+    )
+    fig.text(
+        ax_left + ax_width / 2,
+        title_y,
+        subtitle,
+        ha="center",
+        va="bottom",
+        fontsize=9,
+        fontstyle="italic",
+        fontfamily="DejaVu Sans",
+        color="#555555",
+    )
+
+    # ---- Colour bar ----
+    cbar_ax = fig.add_axes(
+        [
+            ax_left,
+            ax_bottom - cbar_pad_frac - cbar_height_frac,
+            ax_width,
+            cbar_height_frac,
+        ]
+    )
+    sm = ScalarMappable(cmap=cm, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
+    cbar.set_label(
+        "Column-normalised score  (0 = worst, 1 = best)",
+        fontsize=9,
+        fontfamily="DejaVu Sans",
+        color="#444444",
+        labelpad=4,
+    )
+    cbar.ax.tick_params(labelsize=9, colors="#444444", length=2)
+    cbar.outline.set_visible(False)
+
+    # ---- Save ----
+    fig.savefig(out_path, dpi=300, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    logger.info("Heatmap saved: %s", out_path)
 
 
 # ---------------------------------------------------------------------------
@@ -818,6 +1053,7 @@ def _plot_knn_accuracy(
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
+    pca10_name: str,
     label_column: str,
 ) -> None:
     def get_space_color(space: str) -> str:
@@ -825,6 +1061,8 @@ def _plot_knn_accuracy(
             return BASE_COLORS["Full"]
         if space == pca_name:
             return BASE_COLORS["PCA"]
+        if pca10_name and space == pca10_name:
+            return BASE_COLORS["PCA10"]
         return projection_colors.get(space, "#333333")
 
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -858,6 +1096,7 @@ def _plot_silhouette(
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
+    pca10_name: str,
     label_column: str,
 ) -> None:
     def get_space_color(space: str) -> str:
@@ -865,6 +1104,8 @@ def _plot_silhouette(
             return BASE_COLORS["Full"]
         if space == pca_name:
             return BASE_COLORS["PCA"]
+        if pca10_name and space == pca10_name:
+            return BASE_COLORS["PCA10"]
         return projection_colors.get(space, "#333333")
 
     spaces = list(silhouette.keys())
@@ -899,6 +1140,7 @@ def _plot_concordex(
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
+    pca10_name: str,
     label_column: str,
 ) -> None:
     """Bar chart of CONCORDEX scores, one bar per space.
@@ -912,6 +1154,8 @@ def _plot_concordex(
             return BASE_COLORS["Full"]
         if space == pca_name:
             return BASE_COLORS["PCA"]
+        if pca10_name and space == pca10_name:
+            return BASE_COLORS["PCA10"]
         return projection_colors.get(space, "#333333")
 
     spaces = list(concordex.keys())
@@ -940,118 +1184,4 @@ def _plot_concordex(
 
     fig.tight_layout()
     fig.savefig(out_dir / "concordex.png", dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
-def _plot_spearman_dist_corr(
-    *,
-    out_dir: Path,
-    unsupervised: dict[str, dict[str, Any]],
-    projection_colors: dict[str, str],
-) -> None:
-    """Grouped bar chart of Spearman Distance Correlation per projection.
-
-    Each projection gets two bars — one for the Full reference and one for
-    the PCA reference — using the same colour as the other per-projection
-    line plots, distinguished by bar opacity / hatch.
-    """
-    # Collect: projection_label → {gt_label: value}
-    data: dict[str, dict[str, float]] = {}
-    for line_label, metrics in unsupervised.items():
-        proj = metrics["projection_label"]
-        gt = metrics["gt_label"]
-        data.setdefault(proj, {})[gt] = metrics["spearman_dist"]
-
-    proj_labels = list(data.keys())
-    gt_groups = sorted({gt for d in data.values() for gt in d})
-    n_proj = len(proj_labels)
-    n_gt = len(gt_groups)
-    x = np.arange(n_proj)
-    bar_width = 0.35
-    offsets = np.linspace(-(n_gt - 1) / 2, (n_gt - 1) / 2, n_gt) * bar_width
-
-    hatches = [None, "///"]
-    fig, ax = plt.subplots(figsize=(max(8, n_proj * 1.5), 5))
-    for gi, gt in enumerate(gt_groups):
-        heights = [data[p].get(gt, float("nan")) for p in proj_labels]
-        colors = [projection_colors.get(p, "#333333") for p in proj_labels]
-        bars = ax.bar(
-            x + offsets[gi],
-            heights,
-            width=bar_width,
-            color=colors,
-            edgecolor="white",
-            hatch=hatches[gi % len(hatches)],
-            label=f"vs {gt}",
-            alpha=0.85,
-        )
-        ax.bar_label(bars, fmt="%.3f", padding=3, fontsize=8)
-
-    ax.set_title("Spearman Distance Correlation", fontsize=13, fontweight="bold")
-    ax.set_ylabel("Spearman r", fontsize=11)
-    ax.set_xlabel("Projection", fontsize=11)
-    ax.set_xticks(x)
-    ax.set_xticklabels(proj_labels, rotation=15, ha="right")
-    ax.legend(fontsize=9, framealpha=0.7)
-    ax.grid(True, axis="y", alpha=0.3)
-    ax.spines[["top", "right"]].set_visible(False)
-
-    fig.tight_layout()
-    fig.savefig(out_dir / "spearman_dist_corr.png", dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
-def _plot_density_corr(
-    *,
-    out_dir: Path,
-    unsupervised: dict[str, dict[str, Any]],
-    projection_colors: dict[str, str],
-) -> None:
-    """Grouped bar chart of Density Correlation per projection.
-
-    Layout mirrors ``_plot_spearman_dist_corr``: two bars per projection
-    (Full vs PCA reference), same colour scheme.
-    """
-    data: dict[str, dict[str, float]] = {}
-    for line_label, metrics in unsupervised.items():
-        proj = metrics["projection_label"]
-        gt = metrics["gt_label"]
-        data.setdefault(proj, {})[gt] = metrics["density_corr"]
-
-    proj_labels = list(data.keys())
-    gt_groups = sorted({gt for d in data.values() for gt in d})
-    n_proj = len(proj_labels)
-    n_gt = len(gt_groups)
-    x = np.arange(n_proj)
-    bar_width = 0.35
-    offsets = np.linspace(-(n_gt - 1) / 2, (n_gt - 1) / 2, n_gt) * bar_width
-
-    hatches = [None, "///"]
-    fig, ax = plt.subplots(figsize=(max(8, n_proj * 1.5), 5))
-    for gi, gt in enumerate(gt_groups):
-        heights = [data[p].get(gt, float("nan")) for p in proj_labels]
-        colors = [projection_colors.get(p, "#333333") for p in proj_labels]
-        bars = ax.bar(
-            x + offsets[gi],
-            heights,
-            width=bar_width,
-            color=colors,
-            edgecolor="white",
-            hatch=hatches[gi % len(hatches)],
-            label=f"vs {gt}",
-            alpha=0.85,
-        )
-        ax.bar_label(bars, fmt="%.3f", padding=3, fontsize=8)
-
-    ax.set_title("Density Correlation", fontsize=13, fontweight="bold")
-    ax.set_ylabel("Pearson r (local density)", fontsize=11)
-    ax.set_xlabel("Projection", fontsize=11)
-    ax.set_xticks(x)
-    ax.set_xticklabels(proj_labels, rotation=15, ha="right")
-    ax.legend(fontsize=9, framealpha=0.7)
-    ax.grid(True, axis="y", alpha=0.3)
-    ax.spines[["top", "right"]].set_visible(False)
-
-    fig.tight_layout()
-    fig.savefig(out_dir / "density_corr.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
