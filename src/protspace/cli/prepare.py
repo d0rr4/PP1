@@ -187,6 +187,44 @@ Opt_NoLog = Annotated[
         rich_help_panel="Output",
     ),
 ]
+Opt_Background = Annotated[
+    Path | None,
+    typer.Option(
+        "--background",
+        help="Path to the background .h5 embedding file required for rhoPCA.",
+        rich_help_panel="Input",
+    ),
+]
+
+# Evaluation
+Opt_Eval = Annotated[
+    bool,
+    typer.Option(
+        "--eval/--no-eval",
+        help="Run projection quality evaluation and save plots in {output}/eval/.",
+        rich_help_panel="Evaluation",
+    ),
+]
+Opt_Label = Annotated[
+    str,
+    typer.Option(
+        "--label",
+        help=(
+            "Annotation column used for supervised metrics during --eval. "
+            "Values are parsed up to the first '|' and stripped."
+        ),
+        rich_help_panel="Evaluation",
+    ),
+]
+Opt_Filter = Annotated[
+    int,
+    typer.Option(
+        "--filter",
+        min=0,
+        help="Minimum proteins per class in --label for --eval.",
+        rich_help_panel="Evaluation",
+    ),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +308,7 @@ def prepare(
     input: Opt_Input = None,
     query: Opt_Query = None,
     fasta: Opt_Fasta = None,
+    background: Opt_Background = None,
     # Embedding
     embedder: Opt_Embedder = None,
     batch_size: Opt_BatchSize = 1000,
@@ -297,6 +336,10 @@ def prepare(
     bundled: Opt_Bundled = True,
     dump_cache: Opt_DumpCache = False,
     no_log: Opt_NoLog = False,
+    # Evaluation
+    eval: Opt_Eval = False,
+    label: Opt_Label = "protein_families",
+    filter: Opt_Filter = 0,
     # General
     verbose: Opt_Verbose = 0,
 ) -> None:
@@ -340,6 +383,7 @@ def prepare(
         logger.info(f"FASTA detected, defaulting to '{embedders[0]}'")
 
     # --- Output and cache paths ---
+
     output_dir = output if output.suffix == "" else output.parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -509,6 +553,10 @@ def prepare(
             annotations=annotation_list,
             intermediate_dir=cache_dir,
             reducer_params=reducer_params,
+            background_path=background,
+            eval_enabled=eval,
+            eval_label=label,
+            eval_filter=filter,
         )
 
         ReductionPipeline(config).run(embedding_sets)
@@ -655,6 +703,11 @@ def _write_run_log(
         "## Annotations",
         f"categories: {', '.join(pipeline_config.annotations or ['default'])}",
         f"scores: {scores}",
+        "",
+        "## Evaluation",
+        f"enabled: {pipeline_config.eval_enabled}",
+        f"label: {pipeline_config.eval_label}",
+        f"min_class_size: {pipeline_config.eval_filter}",
         "",
         "## Output",
         f"format: {'parquetbundle' if pipeline_config.bundled else 'parquet'}",

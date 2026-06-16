@@ -42,6 +42,9 @@ class BaseProcessor:
             "max_iter",
             "eps",
             "random_state",
+            "background",
+            "background_matrix",
+            "scale_variance",
         }
         filtered_config = {
             k: v for k, v in self.config.items() if k in valid_config_keys
@@ -78,7 +81,8 @@ class BaseProcessor:
                     "ignore", category=RuntimeWarning, module=r"sklearn"
                 )
                 warnings.filterwarnings("ignore", category=UserWarning, module=r"umap")
-                reduced_data = reducer.fit_transform(data)
+                background_data = filtered_config.get("background_matrix", None)
+                reduced_data = reducer.fit_transform(data, background_data=background_data)
         finally:
             pacmap_logger.setLevel(prev_level)
 

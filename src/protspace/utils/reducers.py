@@ -8,6 +8,15 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS, TSNE
 
+import anndata as ad
+import pandas as pd
+import h5py
+
+import scipy.sparse as sp
+import sys
+from pathlib import Path
+from rhopca.core import rhoPCA
+
 # Re-export constants and config from lightweight module
 from protspace.utils.constants import (  # noqa: F401
     LOCALMAP_NAME,
@@ -18,6 +27,7 @@ from protspace.utils.constants import (  # noqa: F401
     REDUCER_METHODS,
     TSNE_NAME,
     UMAP_NAME,
+    RHOPCA_NAME,
     DimensionReductionConfig,
 )
 
@@ -104,6 +114,7 @@ def _ensure_annoy_or_fallback() -> None:
     def parameters_by_method(self, method: str) -> list[dict[str, Any]]:
         from pacmap import LocalMAP, PaCMAP
         from umap import UMAP
+        from rhopca.core import rhoPCA
 
         method_map = {
             TSNE_NAME: TSNE,
@@ -112,6 +123,7 @@ def _ensure_annoy_or_fallback() -> None:
             PACMAP_NAME: PaCMAP,
             MDS_NAME: MDS,
             LOCALMAP_NAME: LocalMAP,
+            RHOPCA_NAME: rhoPCA
         }
 
         if method not in method_map:
@@ -211,7 +223,7 @@ class DimensionReducer(ABC):
         self.config = config
 
     @abstractmethod
-    def fit_transform(self, data: np.ndarray) -> np.ndarray:
+    def fit_transform(self, data: np.ndarray, background_data: np.ndarray=None) -> np.ndarray:
         """Transform data to lower dimensions."""
         pass
 
@@ -259,6 +271,70 @@ class PCAReducer(DimensionReducer):
         return params
 
 
+class rhoPCAReducer(DimensionReducer):
+    """rhoPCA - contrastive dimensionality reduction method.
+    
+    This reducer handles parsing background data explicitly from the CLI,
+    formats matrices into AnnData structures, runs the contrastive PCA model,
+    and extracts background-aware projections directly from the fitted model attributes.
+    """
+
+    def __init__(self, config: DimensionReductionConfig):
+        super().__init__(config)
+
+    def fit_transform(self, data: np.ndarray, background_data: np.ndarray = None) -> np.ndarray:
+        import scipy.sparse as sp
+
+        if background_data is None:
+            raise ValueError(
+                "rhoPCAReducer.fit_transform() received no background_data.\n"
+                "Supply a background embedding file with the --background flag:\n"
+                "  protspace prepare ... --background background.h5 -m rhopca2"
+            )
+
+        target_data = data
+        dims = getattr(self.config, "n_components", 2)
+
+        if target_data.shape[1] != background_data.shape[1]:
+            raise ValueError(
+                f"Foreground embedding dim ({target_data.shape[1]}) does not "
+                f"match background embedding dim ({background_data.shape[1]}). "
+                "Both must come from the same pLM."
+            )
+
+        n_fg = len(target_data)
+        n_bg = len(background_data)
+
+        X = np.vstack([target_data, background_data])
+        labels = ["target"] * n_fg + ["background"] * n_bg
+
+        adata = ad.AnnData(sp.csr_matrix(X.astype(np.float32)))
+        adata.obs["group"] = pd.Categorical(labels)
+        
+        scale_var = getattr(self.config, "scale_variance", True)
+        dims = getattr(self.config, "n_components", 2)
+        
+        # testing
+        #print(f"Doing rhoPCA with dims: {dims}")
+        
+        model = rhoPCA(
+            adata,
+            contrast_column="group",
+            target="target",
+            background="background",
+            n_GEs=dims,
+        )
+        model.fit()
+
+        coords = np.array(model.target_proj)[:, :dims]
+        return coords.astype(np.float64)
+    
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": getattr(self.config, "n_components", 2),
+            "scale_variance": getattr(self.config, "scale_variance", True)
+        }
+        
 class TSNEReducer(DimensionReducer):
     """t-SNE (t-Distributed Stochastic Neighbor Embedding) reduction."""
 
@@ -286,7 +362,8 @@ class UMAPReducer(DimensionReducer):
 
     def fit_transform(self, data: np.ndarray) -> np.ndarray:
         from umap import UMAP
-
+        # testing
+        #print(f"Doing UMAP.")
         return UMAP(
             n_components=self.config.n_components,
             n_neighbors=self.config.n_neighbors,
@@ -294,6 +371,8 @@ class UMAPReducer(DimensionReducer):
             metric=self.config.metric,
             random_state=self.config.random_state,
         ).fit_transform(data)
+        
+        
 
     def get_params(self) -> dict[str, Any]:
         return {

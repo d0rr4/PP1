@@ -1,0 +1,641 @@
+id	accession	length	mature_length	signal_peptide_end	has_signal_peptide	n_cysteines	mature_n_cysteines	organism	taxonomy_id	protein_name	gene_name	interpro_domains
+sp|A0A0B4J184|T3A_TERVA	A0A0B4J184	21	21	0	False	6	6.0	Neoterebra variegata	3244988	Venom peptide Tv1		
+sp|A0A6G9KHD3|TX12A_MANRB	A0A6G9KHD3	14	-9	23	True	0		Manica rubida	219785	U12-myrmicitoxin-Mri1a		
+sp|B3A0N1|VPA_BOTAT	B3A0N1	15	15	0	False	1	1.0	Bothrops atrox	8725	Venom prothrombin activator		IPR014760
+sp|B3EWG8|PA2A_PORNA	B3EWG8	10	10	0	False	0	0.0	Porthidium nasutum	74558	Acidic phospholipase A2 PnPLA2		
+sp|B3EWH2|AON_AZEFE	B3EWH2	21	21	0	False	0	0.0	Azemiops feae	8773	Azemiopsin		
+sp|B3EWQ8|PA2_BUNFA	B3EWQ8	16	16	0	False	0	0.0	Bungarus fasciatus	8613	Phospholipase A2 BF-CT1		
+sp|B3EWR3|3SAW_NAJNA	B3EWR3	10	10	0	False	1	1.0	Naja naja	35670	Cytotoxin NN-32		
+sp|B3EWU4|TXS1D_CUPSA	B3EWU4	15	15	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-1d		IPR035164
+sp|B3EWU5|TXS1E_CUPSA	B3EWU5	15	15	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-1e		IPR035164
+sp|B3EWU6|TXS1F_CUPSA	B3EWU6	9	9	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-1f		
+sp|B3EWU7|TXS4E_CUPSA	B3EWU7	9	9	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-4e		
+sp|B3EWU8|TXS1G_CUPSA	B3EWU8	9	9	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-1g		
+sp|B3EWV0|TXS5A_CUPSA	B3EWV0	17	17	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-5a		
+sp|B3EWV5|TXS3A_CUPSA	B3EWV5	20	20	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-3a		IPR035164
+sp|B3EWV8|TXS4A_CUPSA	B3EWV8	20	20	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-4a		IPR035164
+sp|B3EWV9|TXS4B_CUPSA	B3EWV9	20	20	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-4b		IPR035164
+sp|B3EWW0|TXS4C_CUPSA	B3EWW0	20	20	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-4c		IPR035164
+sp|B3EWW1|TXS4D_CUPSA	B3EWW1	20	20	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-4d		IPR035164
+sp|B3EWW2|TXS4F_CUPSA	B3EWW2	9	9	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-4f		
+sp|B3EWW3|TXC7A_CUPSA	B3EWW3	17	17	0	False	0	0.0	Cupiennius salei	6928	Cupiennin-7a		
+sp|B3EWW4|TXC7B_CUPSA	B3EWW4	17	17	0	False	0	0.0	Cupiennius salei	6928	Cupiennin-7b		
+sp|B3EWW5|TXC6A_CUPSA	B3EWW5	21	21	0	False	0	0.0	Cupiennius salei	6928	Cupiennin-6a		
+sp|B3EWW6|TXC6B_CUPSA	B3EWW6	21	21	0	False	0	0.0	Cupiennius salei	6928	Cupiennin-6b		
+sp|B3EWW7|TXC6C_CUPSA	B3EWW7	21	21	0	False	0	0.0	Cupiennius salei	6928	Cupiennin-6c		
+sp|B3EWW8|TXC6D_CUPSA	B3EWW8	21	21	0	False	0	0.0	Cupiennius salei	6928	Cupiennin-6d		
+sp|B3EWW9|TXC6E_CUPSA	B3EWW9	21	21	0	False	0	0.0	Cupiennius salei	6928	Cupiennin-6e		
+sp|B3EWX0|TXS6A_CUPSA	B3EWX0	20	20	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-6a		
+sp|B3EWX1|TXC6F_CUPSA	B3EWX1	20	20	0	False	0	0.0	Cupiennius salei	6928	Cupiennin-6f		
+sp|B3EWX2|TXS6B_CUPSA	B3EWX2	19	19	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-6b		
+sp|B3EWX3|TXS6C_CUPSA	B3EWX3	13	13	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-6c		
+sp|B3EWX4|TXS6D_CUPSA	B3EWX4	12	12	0	False	0	0.0	Cupiennius salei	6928	Short cationic peptide-6d		
+sp|C0HJD9|K6TX1_ACTBE	C0HJD9	17	17	0	False	4	4.0	Actinia bermudensis	1078900	Potassium channel toxin AbeTx1		
+sp|C0HJM7|TXL1_PHOPT	C0HJM7	10	10	0	False	1	1.0	Phoneutria pertyi	1526577	Toxin Tx1		
+sp|C0HJT2|NDBP8_TITSE	C0HJT2	5	5	0	False	0	0.0	Tityus serrulatus	6887	Venom peptide 8		
+sp|C0HJY4|PON1A_ANOEM	C0HJY4	16	16	0	False	4	4.0	Anochetus emarginatus	486636	U1-poneritoxin-Ae1a		
+sp|C0HJY5|PON1B_ANOEM	C0HJY5	18	18	0	False	4	4.0	Anochetus emarginatus	486636	U1-poneritoxin-Ae1b		
+sp|C0HJY6|PON1C_ANOEM	C0HJY6	18	18	0	False	4	4.0	Anochetus emarginatus	486636	U1-poneritoxin-Ae1c		
+sp|C0HJY7|PON1D_ANOEM	C0HJY7	18	18	0	False	4	4.0	Anochetus emarginatus	486636	U1-poneritoxin-Ae1d		
+sp|C0HJY8|PON1E_ANOEM	C0HJY8	18	18	0	False	4	4.0	Anochetus emarginatus	486636	U1-poneritoxin-Ae1e		
+sp|C0HJY9|PON1F_ANOEM	C0HJY9	19	19	0	False	4	4.0	Anochetus emarginatus	486636	U1-poneritoxin-Ae1f		
+sp|C0HJZ0|PON1G_ANOEM	C0HJZ0	18	18	0	False	4	4.0	Anochetus emarginatus	486636	U1-poneritoxin-Ae1g		
+sp|C0HKA7|BRKP3_PHYNA	C0HKA7	11	11	0	False	0	0.0	Physalaemus nattereri	248869	[Thr6]-phyllokinin		
+sp|C0HKA8|BRKP4_PHYNA	C0HKA8	9	9	0	False	0	0.0	Physalaemus nattereri	248869	[Thr6]-bradykinin		
+sp|C0HKA9|BRKP5_PHYNA	C0HKA9	9	9	0	False	0	0.0	Physalaemus nattereri	248869	[Val1,Thr6]-bradykinin		
+sp|C0HKG4|TX4A_CHEPU	C0HKG4	20	20	0	False	4	4.0	Cheiracanthium punctorium	682790	Toxin CpTx-4a		
+sp|C0HKK6|TU3A_UNEBI	C0HKK6	17	17	0	False	6	6.0	Unedogemmula bisaya	746885	Turripeptide ubi3a		
+sp|C0HKQ9|PSTN_POLPI	C0HKQ9	21	21	0	False	2	2.0	Polybia paulista	291283	Paulistine		
+sp|C0HKY2|CT10A_CONAO	C0HKY2	11	11	0	False	4	4.0	Conus araneosus	101286	Conotoxin ar5a		
+sp|C0HKY3|CT10B_CONAO	C0HKY3	11	11	0	False	4	4.0	Conus araneosus	101286	Conotoxin ar5b		
+sp|C0HKY4|CT10C_CONAO	C0HKY4	11	11	0	False	4	4.0	Conus araneosus	101286	Conotoxin ar5c		
+sp|C0HKY5|CT5D_CONAO	C0HKY5	10	10	0	False	4	4.0	Conus araneosus	101286	Conotoxin ar5d		
+sp|C0HKY6|CM3B_CONAO	C0HKY6	16	16	0	False	6	6.0	Conus araneosus	101286	Conotoxin ar3b		
+sp|C0HKY7|CM3C_CONAO	C0HKY7	17	17	0	False	6	6.0	Conus araneosus	101286	Conotoxin ar3c		
+sp|C0HKY8|M3D_CONAO	C0HKY8	16	16	0	False	6	6.0	Conus araneosus	101286	Conotoxin ar3d		
+sp|C0HKY9|M3E_CONAO	C0HKY9	16	16	0	False	6	6.0	Conus araneosus	101286	Conotoxin ar3e		
+sp|C0HKZ0|M3F_CONAO	C0HKZ0	16	16	0	False	6	6.0	Conus araneosus	101286	Conotoxin ar3f		
+sp|C0HKZ1|CM3G_CONAO	C0HKZ1	16	16	0	False	6	6.0	Conus araneosus	101286	Conotoxin ar3g		
+sp|C0HKZ3|M3I_CONAO	C0HKZ3	16	16	0	False	6	6.0	Conus araneosus	101286	Conotoxin ar3i		
+sp|C0HL88|SL_CROVE	C0HL88	12	12	0	False	0	0.0	Crotalus vegrandis	184545	Snaclec uracolectin		
+sp|C0HL97|VM3_CROVE	C0HL97	20	20	0	False	0	0.0	Crotalus vegrandis	184545	Zinc metalloproteinase-disintegrin-like uracoina-1		
+sp|C0HLK1|CA1B_CONBR	C0HLK1	13	13	0	False	4	4.0	Conus brunneus	101289	Alpha-conotoxin BruIB		
+sp|C0HLM2|CA1C_CONPU	C0HLM2	14	14	0	False	4	4.0	Conus purpurascens	41690	Alpha-conotoxin PIC		
+sp|C0HLT7|BRK_POLOC	C0HLT7	9	9	0	False	0	0.0	Polybia occidentalis	91432	Thr6-bradykinin		
+sp|C0HLZ5|TSCO1_ANDAU	C0HLZ5	4	4	0	False	0	0.0	Androctonus australis	6858	Tetrascorpin-1		
+sp|C0HLZ7|DIRK_BUTOC	C0HLZ7	17	17	0	False	2	2.0	Buthus occitanus tunetanus	6871	RK peptide		
+sp|D6C4J2|CLEB_CONCL	D6C4J2	20	20	0	False	4	4.0	Californiconus californicus	1736779	Conotoxin Cl14b		
+sp|P01022|BPPAB_BOTJA	P01022	10	10	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 10b		
+sp|P01500|APAM_APIME	P01500	19	-8	27	True	4		Apis mellifera	7460	Apamin		IPR035361
+sp|P01514|MAST_VESLE	P01514	14	14	0	False	0	0.0	Vespula lewisii	7452	Mastoparan-L		IPR013213
+sp|P01515|MAST_VESXA	P01515	14	14	0	False	0	0.0	Vespa xanthoptera	7448	Mastoparan-X		IPR013213
+sp|P01516|MAST_VESCR	P01516	14	14	0	False	0	0.0	Vespa crabro	7445	Mastoparan-C		IPR013213
+sp|P01517|MAST_POLJO	P01517	14	14	0	False	0	0.0	Polistes jokahamae	256662	Mastoparan-J		
+sp|P01518|CRBL_VESCR	P01518	13	13	0	False	0	0.0	Vespa crabro	7445	Crabrolin		
+sp|P01520|CA12_CONGE	P01520	13	13	0	False	4	4.0	Conus geographus	6491	Alpha-conotoxin GII		IPR018072
+sp|P01521|CA1_CONMA	P01521	14	14	0	False	4	4.0	Conus magus	6492	Alpha-conotoxin MI		IPR018072
+sp|P04562|BPP1_GLOHA	P04562	11	11	0	False	0	0.0	Gloydius halys	8714	Bradykinin-potentiating peptide 1		
+sp|P05487|CONO_CONST	P05487	9	9	0	False	2	2.0	Conus striatus	6493	Conopressin-S		IPR022423
+sp|P07493|BOL2_BOMPE	P07493	17	17	0	False	0	0.0	Bombus pensylvanicus	28643	Bombolitin-2		IPR012534
+sp|P07494|BOL3_BOMPE	P07494	17	17	0	False	0	0.0	Bombus pensylvanicus	28643	Bombolitin-3		IPR012534
+sp|P07495|BOL4_BOMPE	P07495	17	17	0	False	0	0.0	Bombus pensylvanicus	28643	Bombolitin-4		IPR012534
+sp|P07496|BOL5_BOMPE	P07496	17	17	0	False	0	0.0	Bombus pensylvanicus	28643	Bombolitin-5		
+sp|P0C022|MAST_ANTFM	P0C022	14	14	0	False	0	0.0	Anterhynchium flavomarginatum micado	329991	Eumenine mastoparan-AF		
+sp|P0C1H0|ACTP1_ACTEQ	P0C1H0	20	20	0	False	0	0.0	Actinia equina	6106	Equinatoxin-1		
+sp|P0C1H1|ACTPP_ACTEQ	P0C1H1	20	20	0	False	0	0.0	Actinia equina	6106	Equinatoxin-1''		
+sp|P0C1H2|ACTP3_ACTEQ	P0C1H2	20	20	0	False	0	0.0	Actinia equina	6106	Equinatoxin-3		
+sp|P0C1M1|CRBLE_VESMG	P0C1M1	13	13	0	False	0	0.0	Vespa magnifica	202807	Vespid chemotactic peptide 5e		
+sp|P0C1M2|CRBLF_VESMG	P0C1M2	13	13	0	False	0	0.0	Vespa magnifica	202807	Vespid chemotactic peptide 5f		
+sp|P0C1M3|CRBLG_VESMG	P0C1M3	13	13	0	False	0	0.0	Vespa magnifica	202807	Vespid chemotactic peptide 5g		
+sp|P0C1M4|MASTA_VESMG	P0C1M4	14	14	0	False	0	0.0	Vespa magnifica	202807	Mastoparan-like peptide 12a		IPR013213
+sp|P0C1M5|MASTB_VESMG	P0C1M5	13	13	0	False	0	0.0	Vespa magnifica	202807	Mastoparan-like peptide 12b		
+sp|P0C1M9|M3A_CONMR	P0C1M9	17	17	0	False	6	6.0	Conus marmoreus	42752	Conotoxin mr3a		
+sp|P0C1N0|M3B_CONMR	P0C1N0	19	19	0	False	6	6.0	Conus marmoreus	42752	Conotoxin mr3b		
+sp|P0C1Q5|MASTP_PROSY	P0C1Q5	14	14	0	False	0	0.0	Protonectarina sylveirae	91438	Protonectarina mastoparan		
+sp|P0C1Q9|MAST2_VESVU	P0C1Q9	15	15	0	False	0	0.0	Vespula vulgaris	7454	Mastoparan-V2		
+sp|P0C1R1|PROTO_PROSY	P0C1R1	12	12	0	False	0	0.0	Protonectarina sylveirae	91438	Protonectin		
+sp|P0C1R7|CA1A_CONOM	P0C1R7	17	17	0	False	4	4.0	Conus omaria	89429	Alpha-conotoxin OmIA		IPR009958,IPR018072
+sp|P0C1V7|CA1AB_CONAN	P0C1V7	17	17	0	False	4	4.0	Conus anemone	101285	Alpha-conotoxin AnIB		IPR018072
+sp|P0C1V8|CA1C_CONAN	P0C1V8	17	17	0	False	4	4.0	Conus anemone	101285	Alpha-conotoxin-like AnIC		IPR018072
+sp|P0C1W1|CA1A_CONMA	P0C1W1	15	15	0	False	4	4.0	Conus magus	6492	Alpha-conotoxin-like MIA		
+sp|P0C1W2|CA1B_CONMA	P0C1W2	15	15	0	False	4	4.0	Conus magus	6492	Alpha-conotoxin-like MIB		
+sp|P0C1W8|CA4B_CONOB	P0C1W8	19	19	0	False	6	6.0	Conus obscurus	89447	Alpha-conotoxin OIVB		
+sp|P0C1W9|CA4A_CONPR	P0C1W9	18	18	0	False	6	6.0	Conus pergrandis	330676	Alpha-conotoxin PeIVA		
+sp|P0C1X0|CA4B_CONPR	P0C1X0	18	18	0	False	6	6.0	Conus pergrandis	330676	Alpha-conotoxin PeIVB		
+sp|P0C249|COW_CONIN	P0C249	8	8	0	False	2	2.0	Conus inscriptus	257329	Contryphan-In		IPR011062
+sp|P0C260|CMAT_CONPO	P0C260	14	14	0	False	0	0.0	Conus planorbis	97183	Conomap-Vt		
+sp|P0C2A3|TXBB_ANDCR	P0C2A3	20	20	0	False	1	1.0	Androctonus crassicauda	122909	Toxin b subunit beta		
+sp|P0C2F2|CT274_CONMO	P0C2F2	11	11	0	False	4	4.0	Conus monile	351660	Conotoxin Mo1274		
+sp|P0C2K5|BX3_LOXGA	P0C2K5	7	7	0	False	0	0.0	Loxosceles gaucho	58216	Dermonecrotic toxin LgSicTox-beta-LOXN3		
+sp|P0C2K7|X5_LOXGA	P0C2K7	8	8	0	False	0	0.0	Loxosceles gaucho	58216	Dermonecrotic toxin LgSicTox-LOXN5		
+sp|P0C2K8|X6_LOXGA	P0C2K8	7	7	0	False	0	0.0	Loxosceles gaucho	58216	Dermonecrotic toxin LgSicTox-LOXN6		
+sp|P0C2K9|BX8_LOXGA	P0C2K9	9	9	0	False	0	0.0	Loxosceles gaucho	58216	Dermonecrotic toxin LgSicTox-beta-LOXN8		
+sp|P0C351|CA1B_CONPU	P0C351	16	16	0	False	4	4.0	Conus purpurascens	41690	Alpha-conotoxin PIB		
+sp|P0C424|M3C_CONMR	P0C424	16	16	0	False	6	6.0	Conus marmoreus	42752	Conotoxin mr3c		
+sp|P0C547|3SOFH_NAJAT	P0C547	21	21	0	False	4	4.0	Naja atra	8656	Cardiotoxin-like basic polypeptide ah		
+sp|P0C577|VSPG_BITGA	P0C577	19	19	0	False	2	2.0	Bitis gabonica	8694	Thrombin-like enzyme gabonase		
+sp|P0C578|VSP2_OVOOK	P0C578	20	20	0	False	1	1.0	Ovophis okinavensis	8769	Thrombin-like enzyme okinaxobin-2		
+sp|P0C590|VSP2_GLOUS	P0C590	19	19	0	False	1	1.0	Gloydius ussuriensis	35671	Thrombin-like enzyme calobin-2		
+sp|P0C5G7|MASTD_VESMG	P0C5G7	14	14	0	False	0	0.0	Vespa magnifica	202807	Mastoparan-like peptide 12d		IPR013213
+sp|P0C5H4|3SA1_DABRR	P0C5H4	20	20	0	False	2	2.0	Daboia russelii	8707	Cytotoxin drCT-1		
+sp|P0C5J6|SCXMT_PARLS	P0C5J6	17	17	0	False	0	0.0	Parabuthus liosoma	470425	Mammal toxin PlMT		
+sp|P0C5J7|SCXT_PARLS	P0C5J7	14	14	0	False	1	1.0	Parabuthus liosoma	470425	Insect toxin PlIT		IPR044062
+sp|P0C5J8|SXPLT_PARLS	P0C5J8	17	17	0	False	2	2.0	Parabuthus liosoma	470425	Toxin Plt		
+sp|P0C5S7|SIXP1_OLIMR	P0C5S7	15	15	0	False	0	0.0	Olivierus martensii	34649	Insect toxin BmK AngP1		
+sp|P0C642|CT361_CONVR	P0C642	12	12	0	False	4	4.0	Conus virgo	89427	Conotoxin Vi1361		
+sp|P0C7J7|BPP11_BOTAL	P0C7J7	11	11	0	False	0	0.0	Bothrops alternatus	64174	Bradykinin-potentiating peptide 11		
+sp|P0C7J8|BPP11_BOTJA	P0C7J8	11	11	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 11		
+sp|P0C7J9|BP11A_CROAD	P0C7J9	11	11	0	False	0	0.0	Crotalus adamanteus	8729	Bradykinin-potentiating peptide 11a		
+sp|P0C7K0|BP11B_CROAD	P0C7K0	11	11	0	False	0	0.0	Crotalus adamanteus	8729	Bradykinin-potentiating peptide 11b		
+sp|P0C7K1|BP11A_CROVV	P0C7K1	11	11	0	False	0	0.0	Crotalus viridis viridis	8742	Bradykinin-potentiating peptide 11a		
+sp|P0C7K2|BP11B_CROVV	P0C7K2	11	11	0	False	0	0.0	Crotalus viridis viridis	8742	Bradykinin-potentiating peptide 11b		
+sp|P0C7K3|BP11C_CROVV	P0C7K3	11	11	0	False	0	0.0	Crotalus viridis viridis	8742	Bradykinin-potentiating peptide 11c		
+sp|P0C7R7|BPPDA_BOTAL	P0C7R7	13	13	0	False	0	0.0	Bothrops alternatus	64174	Bradykinin-potentiating peptide 13a		
+sp|P0C7R8|BPPDA_BOTER	P0C7R8	13	13	0	False	0	0.0	Bothrops erythromelas	44710	Bradykinin-potentiating peptide 13a		
+sp|P0C7R9|BPPDA_BOTLC	P0C7R9	13	13	0	False	0	0.0	Bothrops leucurus	157295	Bradykinin-potentiating peptide 13a		
+sp|P0C7S0|BPPDA_BOTMO	P0C7S0	13	13	0	False	0	0.0	Bothrops moojeni	98334	Bradykinin-potentiating peptide 13a		
+sp|P0C7S4|BPP9A_BOTNU	P0C7S4	9	9	0	False	0	0.0	Bothrops neuwiedi	95648	Bradykinin-potentiating peptide 9a		
+sp|P0C7S5|BPP11_BOTNU	P0C7S5	11	11	0	False	0	0.0	Bothrops neuwiedi	95648	Bradykinin-potentiating peptide 11		
+sp|P0C7S7|BPPF_PROMU	P0C7S7	11	11	0	False	0	0.0	Protobothrops mucrosquamatus	103944	Bradykinin-potentiating peptide TmF		
+sp|P0C8B6|STX1_SCOAN	P0C8B6	13	13	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 4511.92 Da toxin		
+sp|P0C8B8|STX2_SCOAN	P0C8B8	15	15	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 4722.07 Da toxin		
+sp|P0C8B9|STX2_SCOVN	P0C8B9	15	15	0	False	0	0.0	Scolopendra viridicornis nigra	486497	Scolopendra 4767.06 Da toxin		
+sp|P0C8C0|STX3A_SCOAN	P0C8C0	19	19	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 5848.46 Da toxin		
+sp|P0C8C1|STX3B_SCOAN	P0C8C1	18	18	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 5920.47 Da toxin		
+sp|P0C8C3|STX4_SCOAN	P0C8C3	9	9	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 5887.74 Da toxin		
+sp|P0C8C4|STX4_SCOVN	P0C8C4	14	14	0	False	0	0.0	Scolopendra viridicornis nigra	486497	Scolopendra 5885.28 Da toxin		
+sp|P0C8C5|STX5_SCOAN	P0C8C5	14	14	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 5928.03 Da toxin		
+sp|P0C8C6|STX5_SCOVN	P0C8C6	18	18	0	False	0	0.0	Scolopendra viridicornis nigra	486497	Scolopendra 5924.74 Da toxin		
+sp|P0C8C7|STX6_SCOAN	P0C8C7	18	18	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 5971.33 Da toxin		
+sp|P0C8C8|STX7_SCOVN	P0C8C8	13	13	0	False	0	0.0	Scolopendra viridicornis nigra	486497	Scolopendra 6940.74 Da toxin		
+sp|P0C8C9|STX8A_SCOAN	P0C8C9	17	17	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 7913.19 Da toxin		
+sp|P0C8D0|STX8B_SCOAN	P0C8D0	10	10	0	False	0	0.0	Scolopendra angulata	486498	Scolopendra 8013.07 Da toxin		
+sp|P0C8D1|STX8A_SCOVN	P0C8D1	21	21	0	False	0	0.0	Scolopendra viridicornis nigra	486497	Scolopendra 7997.01 Da toxin		
+sp|P0C8D3|STX9_SCOVN	P0C8D3	15	15	0	False	0	0.0	Scolopendra viridicornis nigra	486497	Scolopendra 10564.33 Da toxin		
+sp|P0C8D6|VA5A_SCOVN	P0C8D6	13	13	0	False	1	1.0	Scolopendra viridicornis nigra	486497	Scolopendra 20385.85 Da toxin		
+sp|P0C8D8|VA5C_SCOVN	P0C8D8	12	12	0	False	1	1.0	Scolopendra viridicornis nigra	486497	Scolopendra 20466.84 Da toxin		
+sp|P0C8E0|CKP1_CONPI	P0C8E0	19	19	0	False	0	0.0	Conus parius	505247	Conantokin-Pr1		
+sp|P0C8E1|CKP2_CONPI	P0C8E1	19	19	0	False	0	0.0	Conus parius	505247	Conantokin-Pr2		
+sp|P0C8E2|CKP3_CONPI	P0C8E2	19	19	0	False	0	0.0	Conus parius	505247	Conantokin-Pr3		IPR005918
+sp|P0C8I7|VM3FA_VIPAA	P0C8I7	15	15	0	False	0	0.0	Vipera ammodytes ammodytes	8705	Factor X-activator 1 heavy chain		
+sp|P0C8I8|SL2_BITAR	P0C8I8	12	12	0	False	1	1.0	Bitis arietans	8692	Snaclec bitiscetin-2		
+sp|P0C8J0|SLA_OPHHA	P0C8J0	20	20	0	False	2	2.0	Ophiophagus hannah	8665	Snaclec ophioluxin subunit alpha		
+sp|P0C8J1|SLB_OPHHA	P0C8J1	13	13	0	False	2	2.0	Ophiophagus hannah	8665	Snaclec ophioluxin subunit beta		
+sp|P0C8J2|SL1C1_VIPAA	P0C8J2	13	13	0	False	1	1.0	Vipera ammodytes ammodytes	8705	Snaclec factor X-activator 1 light chain 1	LC1	
+sp|P0C8J3|SL1C2_VIPAA	P0C8J3	11	11	0	False	0	0.0	Vipera ammodytes ammodytes	8705	Snaclec factor X-activator 1 light chain 2	LC2	
+sp|P0C8J4|SL2C1_VIPAA	P0C8J4	19	19	0	False	2	2.0	Vipera ammodytes ammodytes	8705	Snaclec factor X-activator 2 light chain 1		
+sp|P0C8J5|SL2C2_VIPAA	P0C8J5	16	16	0	False	3	3.0	Vipera ammodytes ammodytes	8705	Snaclec factor X-activator 2 light chain 2	LC2	
+sp|P0C8U3|CA14_CONBR	P0C8U3	13	13	0	False	4	4.0	Conus brunneus	101289	Alpha-conotoxin-like Br1.4		
+sp|P0C8U5|CA14_CONMN	P0C8U5	17	17	0	False	4	4.0	Conus monachus	89446	Alpha-conotoxin-like Mn1.4		IPR018072
+sp|P0C8V4|CA1A_CONVE	P0C8V4	17	17	0	False	4	4.0	Conus ventricosus	117992	Alpha-conotoxin-like Vn		
+sp|P0C8X4|VMP_TITST	P0C8X4	15	15	0	False	3	3.0	Tityus stigmurus	50344	Venom metalloproteinase		
+sp|P0C8X7|KAXU0_TITST	P0C8X7	15	15	0	False	4	4.0	Tityus stigmurus	50344	Peptide 2900		
+sp|P0C911|SCX_ANDMA	P0C911	16	16	0	False	0	0.0	Androctonus mauritanicus mauritanicus	6860	Alpha-toxin		
+sp|P0C931|EUME_EUMRU	P0C931	15	15	0	False	0	0.0	Eumenes rubronotatus	539890	Eumenitin		
+sp|P0CAR3|3S1E1_MICPY	P0CAR3	21	21	0	False	2	2.0	Micrurus pyrrhocryptus	129468	Short neurotoxin E1		
+sp|P0CAR8|PA2B_BOTJR	P0CAR8	21	21	0	False	0	0.0	Bothrops jararacussu	8726	Basic phospholipase A2 BjIV		
+sp|P0CAS1|PA2B6_CRODM	P0CAS1	21	21	0	False	0	0.0	Crotalus durissus cumanensis	184542	Phospholipase A2 crotoxin basic chain		
+sp|P0CC11|BENG_DECBE	P0CC11	20	20	0	False	0	0.0	Deccanometrus bengalensis	696368	Bengalin		IPR006146
+sp|P0CC16|OXLA_AGKCL	P0CC16	19	19	0	False	0	0.0	Agkistrodon contortrix laticinctus	2782196	L-amino-acid oxidase		
+sp|P0CD67|BOL6_BOMLA	P0CD67	19	19	0	False	0	0.0	Bombus lapidarius	30192	Bombolitin-6		
+sp|P0CD68|BOL7_BOMLA	P0CD68	19	19	0	False	0	0.0	Bombus lapidarius	30192	Bombolitin-7		
+sp|P0CD69|BOL8_BOMLA	P0CD69	19	19	0	False	0	0.0	Bombus lapidarius	30192	Bombolitin-8		
+sp|P0CD70|OSM_OSMRU	P0CD70	17	17	0	False	0	0.0	Osmia rufa	1437190	Osmin		
+sp|P0CE74|CA12_CONBN	P0CE74	18	18	0	False	4	4.0	Conus bandanus	72279	Alpha-conotoxin-like Bn1.2		IPR009958
+sp|P0CE77|CM3B_CONST	P0CE77	20	20	0	False	6	6.0	Conus striatus	6493	Mu-conotoxin SIIIB		
+sp|P0CF76|SCX11_OLIMR	P0CF76	15	15	0	False	1	1.0	Olivierus martensii	34649	Toxin BmKNJX11		IPR044062
+sp|P0CH15|CM3A_CONPI	P0CH15	15	15	0	False	6	6.0	Conus parius	505247	Conotoxin pr3a		
+sp|P0CI05|CA1A_CONTI	P0CI05	16	16	0	False	4	4.0	Conus tinianus	909294	Alpha-conotoxin TiIA		
+sp|P0CI06|TEIA_HASHE	P0CI06	16	16	0	False	4	4.0	Hastula hectica	745793	Augerpeptide hhe1a		
+sp|P0CI07|TEG1_HASHE	P0CI07	11	11	0	False	4	4.0	Hastula hectica	745793	Augerpeptide hheTx1		
+sp|P0CI20|TE9_HASHE	P0CI20	19	19	0	False	4	4.0	Hastula hectica	745793	Augerpeptide hhe9		
+sp|P0CI22|CTA48_CONAO	P0CI22	12	12	0	False	4	4.0	Conus araneosus	101286	Chi-conotoxin-like Ar1248		
+sp|P0CI23|CTA11_CONAO	P0CI23	11	11	0	False	4	4.0	Conus araneosus	101286	Chi-conotoxin-like Ar1311		
+sp|P0CI24|TXM46_CONAO	P0CI24	14	14	0	False	6	6.0	Conus araneosus	101286	Conotoxin Ar1446		
+sp|P0CI41|CUG6A_CONCL	P0CI41	13	13	0	False	4	4.0	Californiconus californicus	1736779	Omega-conotoxin Cl16a		
+sp|P0CJ33|TXVE1_MACLB	P0CJ33	13	13	0	False	0	0.0	Macrovipera lebetinus	3148341	Snake venom vascular endothelial growth factor toxin IC1		
+sp|P0CJ34|BKIP_CROAT	P0CJ34	11	11	0	False	0	0.0	Crotalus atrox	8730	Bradykinin inhibitor peptide		
+sp|P0CJ36|EUMER_EUMRB	P0CJ36	15	15	0	False	0	0.0	Eumenes rubrofemoratus	1035770	Eumenitin-R		
+sp|P0CJ37|EUMEF_EUMFR	P0CJ37	15	15	0	False	0	0.0	Eumenes fraterculus	1035771	Eumenitin-F		
+sp|P0CJ38|MASTE_EUMRB	P0CJ38	14	14	0	False	0	0.0	Eumenes rubrofemoratus	1035770	Eumenine mastoparan-ER		
+sp|P0CJ39|MASTE_EUMFR	P0CJ39	14	14	0	False	0	0.0	Eumenes fraterculus	1035771	Eumenine mastoparan-EF		
+sp|P0CV88|SLBH_CROAT	P0CV88	13	13	0	False	2	2.0	Crotalus atrox	8730	Snaclec convulxin subunit beta homolog		
+sp|P0CV90|VSPH_CROAT	P0CV90	9	9	0	False	0	0.0	Crotalus atrox	8730	Snake venom serine protease homolog		
+sp|P0CY52|FAXD_NOTSN	P0CY52	20	10	0	False	1	1.0	Notechis scutatus niger	1027870	Venom prothrombin activator notanarin-D		
+sp|P0DI85|OXLA8_DEIAC	P0DI85	19	19	0	False	0	0.0	Deinagkistrodon acutus	36307	L-amino-acid oxidase ACTX-8		
+sp|P0DI86|OXLA_BOTAL	P0DI86	18	18	0	False	0	0.0	Bothrops alternatus	64174	L-amino-acid oxidase		
+sp|P0DI90|OXLA2_DABRR	P0DI90	20	20	0	False	3	3.0	Daboia russelii	8707	L-amino-acid oxidase L2		
+sp|P0DJ63|VKT_OXYMI	P0DJ63	17	17	0	False	2	2.0	Oxyuranus microlepidotus	111177	Kunitz-type serine protease inhibitor OMI		
+sp|P0DJ96|TX22_DENAN	P0DJ96	19	19	0	False	0	0.0	Dendroaspis angusticeps	8618	Pro-rich toxin 4		
+sp|P0DJB0|3X_MICLE	P0DJB0	12	12	0	False	2	2.0	Micrurus lemniscatus	129464	Muscarinic toxin Mlalpha		
+sp|P0DJB3|CUX1_CONCL	P0DJB3	12	12	0	False	2	2.0	Californiconus californicus	1736779	Conotoxin Cltx-1		
+sp|P0DJC3|CUGA_CONQU	P0DJC3	11	11	0	False	4	4.0	Conus quercinus	101313	Conotoxin qc16a		
+sp|P0DJE8|VSPDV_BOTJR	P0DJE8	10	10	0	False	1	1.0	Bothrops jararacussu	8726	Thrombin-like enzyme D-V		
+sp|P0DJF1|VSP1_BOTPA	P0DJF1	15	15	0	False	1	1.0	Bothrops pauloensis	1042543	Thrombin-like enzyme BpSP-1		
+sp|P0DJF4|VSPAL_TRIAB	P0DJF4	11	11	0	False	1	1.0	Trimeresurus albolabris	8765	Thrombin-like enzyme albolabrase		
+sp|P0DJF7|VSPP_TRIPP	P0DJF7	19	19	0	False	1	1.0	Trimeresurus purpureomaculatus	101163	Thrombin-like enzyme purpurase		
+sp|P0DJG5|VSPKA_GLOHA	P0DJG5	15	15	0	False	1	1.0	Gloydius halys	8714	Snake venom serine protease AHP-Ka		
+sp|P0DJG7|VSP2_DEIAC	P0DJG7	15	15	0	False	1	1.0	Deinagkistrodon acutus	36307	Thrombin-like enzyme acutobin-2		
+sp|P0DJG8|CRVP_HELAG	P0DJG8	21	21	0	False	0	0.0	Helicops angulatus	121331	Helicopsin		
+sp|P0DJH3|VMP3A_DEIAC	P0DJH3	10	10	0	False	1	1.0	Deinagkistrodon acutus	36307	Zinc metalloproteinase-disintegrin-like AAV1		
+sp|P0DJJ1|VM3AH_NAJAT	P0DJJ1	16	16	0	False	0	0.0	Naja atra	8656	Zinc metalloproteinase atrahagin		
+sp|P0DJJ6|VM1B_BOTLC	P0DJJ6	9	9	0	False	0	0.0	Bothrops leucurus	157295	Snake venom metalloproteinase BleucMP		
+sp|P0DJK2|BPPAD_BOTCO	P0DJK2	10	10	0	False	0	0.0	Bothrops cotiara	8727	Bradykinin-potentiating peptide 10d		
+sp|P0DJK3|BPPAE_BOTCO	P0DJK3	10	10	0	False	0	0.0	Bothrops cotiara	8727	Bradykinin-potentiating peptide 10e		
+sp|P0DJK4|BPPBF_BOTCO	P0DJK4	11	11	0	False	0	0.0	Bothrops cotiara	8727	Bradykinin-potentiating peptide 11f		
+sp|P0DJK5|BPPAD_BOTFO	P0DJK5	10	10	0	False	0	0.0	Bothrops fonsecai	157549	Bradykinin-potentiating peptide 10d		
+sp|P0DJK6|BPPBH_BOTJA	P0DJK6	11	11	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 11h		
+sp|P0DJK7|BPPAF_BOTFO	P0DJK7	10	10	0	False	0	0.0	Bothrops fonsecai	157549	Bradykinin-potentiating peptide 10f		
+sp|P0DJL1|SLB_TRIAB	P0DJL1	12	12	0	False	1	1.0	Trimeresurus albolabris	8765	Snaclec alboluxin subunit beta		
+sp|P0DJL6|CT5A_CONCN	P0DJL6	14	14	0	False	4	4.0	Conus consors	101297	Tau-conotoxin CnVA		
+sp|P0DJP5|PA2A_DABSI	P0DJP5	18	18	0	False	0	0.0	Daboia siamensis	343250	Acidic phospholipase A2 Drs-PLA2		
+sp|P0DKR4|PA2AB_PSEFE	P0DKR4	20	20	0	False	3	3.0	Pseudocerastes fieldi	1355908	Acidic phospholipase A2 CbIbeta		
+sp|P0DKT7|PA2CA_OXYSA	P0DKT7	20	20	0	False	1	1.0	Oxyuranus scutellatus canni	183720	Basic phospholipase A2 cannitoxin alpha chain		
+sp|P0DKX1|PA2N_DABRR	P0DKX1	19	19	0	False	0	0.0	Daboia russelii	8707	Neutral phospholipase A2 RVV-PFIIc'		
+sp|P0DKX2|VSP1_CRODM	P0DKX2	10	10	0	False	1	1.0	Crotalus durissus cumanensis	184542	Thrombin-like enzyme Cdc SI		
+sp|P0DKX3|VSP2_CRODM	P0DKX3	20	20	0	False	1	1.0	Crotalus durissus cumanensis	184542	Thrombin-like enzyme Cdc SII		
+sp|P0DKZ2|BPPCD_BOTCO	P0DKZ2	12	12	0	False	0	0.0	Bothrops cotiara	8727	Bradykinin-potentiating peptide 12d		
+sp|P0DKZ3|BPP7B_BOTCO	P0DKZ3	7	7	0	False	0	0.0	Bothrops cotiara	8727	Bradykinin-potentiating peptide 7b		
+sp|P0DKZ4|BPP8A_BOTCO	P0DKZ4	8	8	0	False	0	0.0	Bothrops cotiara	8727	Bradykinin-potentiating peptide 8a		
+sp|P0DKZ5|BPPCE_BOTCO	P0DKZ5	12	12	0	False	0	0.0	Bothrops cotiara	8727	Bradykinin-potentiating peptide 12e		
+sp|P0DKZ6|BPPDA_BOTCO	P0DKZ6	13	13	0	False	0	0.0	Bothrops cotiara	8727	Bradykinin-potentiating peptide 13a		
+sp|P0DKZ7|BPPCD_BOTFO	P0DKZ7	12	12	0	False	0	0.0	Bothrops fonsecai	157549	Bradykinin-potentiating peptide 12d		
+sp|P0DKZ8|BPP7C_BOTFO	P0DKZ8	7	7	0	False	0	0.0	Bothrops fonsecai	157549	Bradykinin-potentiating peptide 7c		
+sp|P0DKZ9|BPPAP_BOTFO	P0DKZ9	13	13	0	False	0	0.0	Bothrops fonsecai	157549	Bradykinin-potentiating peptide AP		
+sp|P0DL00|BPPBG_BOTFO	P0DL00	11	11	0	False	0	0.0	Bothrops fonsecai	157549	Bradykinin-potentiating peptide 11g		
+sp|P0DL01|BPPBG_BOTJA	P0DL01	11	11	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 11g		
+sp|P0DL02|BPPDC_BOTJA	P0DL02	13	13	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 13c		
+sp|P0DL03|BPPCE_BOTJA	P0DL03	12	12	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 12e		
+sp|P0DL04|BPPBI_BOTJA	P0DL04	11	11	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 11i		
+sp|P0DL05|BPPBJ_BOTJA	P0DL05	11	11	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 11j		
+sp|P0DL06|BPPDD_BOTJA	P0DL06	13	13	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 13d		
+sp|P0DL24|SCXT_TITPA	P0DL24	20	20	0	False	2	2.0	Tityus pachyurus	288781	Putative beta-neurotoxin		IPR044062,IPR036574
+sp|P0DL32|BRKF_CYPDO	P0DL32	11	11	0	False	0	0.0	Cyphononyx dorsalis	246266	Fulvonin		
+sp|P0DL39|CA1A_CONAV	P0DL39	16	16	0	False	4	4.0	Conus australis	1519798	Alpha-conotoxin AusIA		
+sp|P0DL68|CA1A_CONLM	P0DL68	17	17	0	False	4	4.0	Conus limpusi	1967283	Alpha-conotoxin LsIA		IPR009958,IPR018072
+sp|P0DL71|COS_CONTE	P0DL71	8	8	0	False	0	0.0	Conus textile	6494	Conorfamide Tx1.3		
+sp|P0DL76|CONOT_CONTU	P0DL76	9	9	0	False	2	2.0	Conus tulipa	6495	Conopressin-T		
+sp|P0DL85|M3A_CONPE	P0DL85	17	17	0	False	6	6.0	Conus pennaceus	37335	Conotoxin Pn3a		
+sp|P0DM22|KPHAB_ACTTE	P0DM22	17	17	0	False	4	4.0	Actinia tenebrosa	6105	Kappa-actitoxin-Ate1a		
+sp|P0DM28|CRFA3_CONSP	P0DM28	15	15	0	False	0	0.0	Conus spurius	192919	Conorfamide-Sr3		
+sp|P0DM43|VSP_PROJR	P0DM43	21	21	0	False	1	1.0	Protobothrops jerdonii	242841	Thrombin-like enzyme jerdonobin		
+sp|P0DM46|VM3A_MICCO	P0DM46	15	15	0	False	0	0.0	Micrurus corallinus	54390	Zinc metalloproteinase-disintegrin-like		
+sp|P0DM47|VKT_MICAT	P0DM47	15	15	0	False	2	2.0	Micrurus altirostris	129457	Protease inhibitor		
+sp|P0DM54|BPPCB_BOTJA	P0DM54	12	12	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 12b		
+sp|P0DM70|BRK1_PROEX	P0DM70	21	21	0	False	0	0.0	Protopolybia exigua	91439	Protopolybiakinin-1		
+sp|P0DM71|BRK2_PROEX	P0DM71	19	19	0	False	0	0.0	Protopolybia exigua	91439	Protopolybiakinin-2		
+sp|P0DM72|BRK1_TRICX	P0DM72	10	10	0	False	0	0.0	Trichonephila clavipes	2585209	Nephilakinin-1		
+sp|P0DM73|BRK2_TRICX	P0DM73	10	10	0	False	0	0.0	Trichonephila clavipes	2585209	Nephilakinin-2		
+sp|P0DM74|BRK3_TRICX	P0DM74	10	10	0	False	0	0.0	Trichonephila clavipes	2585209	Nephilakinin-3		
+sp|P0DM76|BRK_TRICX	P0DM76	9	9	0	False	0	0.0	Trichonephila clavipes	2585209	Bradykinin		
+sp|P0DM98|CUPC_CONPB	P0DM98	9	9	0	False	2	2.0	Conus pictus	1042615	Conopeptide-pc		
+sp|P0DM99|CU1A_CONPB	P0DM99	18	18	0	False	4	4.0	Conus pictus	1042615	Conotoxin pc1A		
+sp|P0DMA0|CU1B_CONPB	P0DMA0	18	18	0	False	4	4.0	Conus pictus	1042615	Conotoxin pc1b		
+sp|P0DMA1|CM3A_CONPB	P0DMA1	18	18	0	False	6	6.0	Conus pictus	1042615	Conotoxin pc3a		
+sp|P0DMB3|CU3A_CONNA	P0DMB3	16	16	0	False	6	6.0	Conus natalis	257336	Conotoxin nt3a		
+sp|P0DMD6|TSNP_TITSE	P0DMD6	21	21	0	False	2	2.0	Tityus serrulatus	6887	Natriuretic peptide TsNP		IPR000663,IPR030480,IPR002408
+sp|P0DMG5|CRVP_BOTCO	P0DMG5	15	15	0	False	0	0.0	Bothrops cotiara	8727	Cysteine-rich venom protein Bco13		
+sp|P0DMG6|CRVP_BOTFO	P0DMG6	15	15	0	False	0	0.0	Bothrops fonsecai	157549	Cysteine-rich venom protein Bfon12		
+sp|P0DMG7|NGFV_BOTCO	P0DMG7	21	21	0	False	1	1.0	Bothrops cotiara	8727	Venom nerve growth factor Bco12		
+sp|P0DMG8|OXLA_BOTCO	P0DMG8	15	15	0	False	1	1.0	Bothrops cotiara	8727	L-amino-acid oxidase Bco23		
+sp|P0DMG9|OXLA_BOTFO	P0DMG9	15	15	0	False	1	1.0	Bothrops fonsecai	157549	L-amino-acid oxidase Bfon20		
+sp|P0DMH1|SL_BOTFO	P0DMH1	15	15	0	False	2	2.0	Bothrops fonsecai	157549	Snaclec Bfon18		
+sp|P0DMH2|VM1_BOTCO	P0DMH2	15	15	0	False	0	0.0	Bothrops cotiara	8727	Snake venom metalloproteinase Bco22		
+sp|P0DMH3|VM1_BOTFO	P0DMH3	18	18	0	False	0	0.0	Bothrops fonsecai	157549	Snake venom metalloproteinase Bfon25		
+sp|P0DMH4|VM2_BOTFO	P0DMH4	20	20	0	False	4	4.0	Bothrops fonsecai	157549	Disintegrin		IPR036436
+sp|P0DMH5|VSP_BOTCO	P0DMH5	15	15	0	False	1	1.0	Bothrops cotiara	8727	Snake venom serine protease		
+sp|P0DMH6|VSP_BOTFO	P0DMH6	15	15	0	False	1	1.0	Bothrops fonsecai	157549	Snake venom serine protease		
+sp|P0DMM6|SLA_TROWA	P0DMM6	9	9	0	False	1	1.0	Tropidolaemus wagleri	8770	Snaclec trowaglerix subunit alpha		
+sp|P0DMM7|SLB_TROWA	P0DMM7	10	10	0	False	2	2.0	Tropidolaemus wagleri	8770	Snaclec trowaglerix subunit beta		
+sp|P0DMU0|VSPJN_PROJR	P0DMU0	21	21	0	False	1	1.0	Protobothrops jerdonii	242841	Snake venom serine protease jerdonase		
+sp|P0DMU1|VSPJF_PROJR	P0DMU1	20	20	0	False	1	1.0	Protobothrops jerdonii	242841	Beta-fibrinogenase jerdofibrase		
+sp|P0DMV6|3SA12_DABRR	P0DMV6	20	20	0	False	2	2.0	Daboia russelii	8707	7.2 kDa cytotoxin RVV-7		
+sp|P0DOZ2|CONGA_CONAV	P0DOZ2	18	18	0	False	2	2.0	Conus australis	1519798	Conotoxin AusB		
+sp|P0DOZ4|CKQ_CONQU	P0DOZ4	17	17	0	False	0	0.0	Conus quercinus	101313	Conantokin-Qu		
+sp|P0DOZ5|CKC_CONCB	P0DOZ5	17	17	0	False	0	0.0	Conus caracteristicus	89440	Conantokin-Ca2		
+sp|P0DOZ6|CKG_CONGL	P0DOZ6	18	18	0	False	0	0.0	Conus gloriamaris	37336	Conantokin-Gm		
+sp|P0DOZ8|M3A_CONAX	P0DOZ8	15	15	0	False	6	6.0	Conus asiaticus	1945508	Conotoxin Asi3a		
+sp|P0DOZ9|CUEA_CONAX	P0DOZ9	17	17	0	False	4	4.0	Conus asiaticus	1945508	Conotoxin Asi14a		
+sp|P0DP10|M3A_CONFI	P0DP10	15	15	0	False	6	6.0	Conus figulinus	101301	Conotoxin Fi3a		
+sp|P0DP11|M3C_CONFI	P0DP11	14	14	0	False	6	6.0	Conus figulinus	101301	Conotoxin Fi3c		
+sp|P0DP12|CM5A_CONFI	P0DP12	13	13	0	False	4	4.0	Conus figulinus	101301	Conotoxin Fi5a		
+sp|P0DP13|COWB_CONFI	P0DP13	8	8	0	False	2	2.0	Conus figulinus	101301	Contryphan-Fib		IPR011062
+sp|P0DP14|COWC_CONFI	P0DP14	8	8	0	False	2	2.0	Conus figulinus	101301	Contryphan-Fic		IPR011062
+sp|P0DP17|COWA_CONLE	P0DP17	8	8	0	False	2	2.0	Conus leopardus	101306	Contryphan-Le		IPR011062
+sp|P0DP18|COW_CONZE	P0DP18	10	10	0	False	2	2.0	Conus zeylanicus	1519886	Contryphan-Ze		IPR011062
+sp|P0DP19|COW1_CONBE	P0DP19	10	10	0	False	2	2.0	Conus betulinus	89764	Contryphan-Bt		IPR011062
+sp|P0DP20|COWA_CONFI	P0DP20	10	10	0	False	2	2.0	Conus figulinus	101301	Contryphan-Fia		IPR011062
+sp|P0DPJ2|CM3C_CONRE	P0DPJ2	17	17	0	False	6	6.0	Conus regius	101314	Conotoxin reg3c		
+sp|P0DPJ3|CM3D_CONRE	P0DPJ3	17	17	0	False	6	6.0	Conus regius	101314	Conotoxin reg3d		
+sp|P0DPJ5|CM3G_CONRE	P0DPJ5	15	15	0	False	6	6.0	Conus regius	101314	Conotoxin reg3g		
+sp|P0DPJ6|CM3I_CONRE	P0DPJ6	17	17	0	False	6	6.0	Conus regius	101314	Conotoxin reg3i		
+sp|P0DPJ7|CM3J_CONRE	P0DPJ7	17	17	0	False	6	6.0	Conus regius	101314	Conotoxin reg3j		
+sp|P0DPJ8|CM3M_CONRE	P0DPJ8	17	17	0	False	6	6.0	Conus regius	101314	Conotoxin reg3m		
+sp|P0DPK7|CX5E_CONTE	P0DPK7	14	14	0	False	4	4.0	Conus textile	6494	Conotoxin tx5e		
+sp|P0DPK8|M313_CONTE	P0DPK8	16	16	0	False	6	6.0	Conus textile	6494	Conotoxin SI.13		
+sp|P0DPK9|M314_CONTE	P0DPK9	17	17	0	False	6	6.0	Conus textile	6494	Conotoxin SI.14		
+sp|P0DPL0|M316_CONTE	P0DPL0	15	15	0	False	6	6.0	Conus textile	6494	Conotoxin SI.6		
+sp|P0DPL2|M3I_CONTE	P0DPL2	15	15	0	False	6	6.0	Conus textile	6494	Conotoxin tx3i		
+sp|P0DPL3|M3J_CONTE	P0DPL3	16	16	0	False	6	6.0	Conus textile	6494	Conotoxin tx3j		
+sp|P0DPL4|CT5F_CONTE	P0DPL4	9	9	0	False	4	4.0	Conus textile	6494	Conotoxin tx5f		
+sp|P0DPL5|CT5G_CONTE	P0DPL5	11	11	0	False	4	4.0	Conus textile	6494	Conotoxin tx5g		
+sp|P0DPL6|CT5H_CONTE	P0DPL6	12	12	0	False	4	4.0	Conus textile	6494	Conotoxin tx5h		
+sp|P0DPL7|CT5E_CONTE	P0DPL7	15	15	0	False	4	4.0	Conus textile	6494	Conotoxin tx5e		
+sp|P0DPM2|CA14_CONSE	P0DPM2	17	17	0	False	4	4.0	Conus stercusmuscarum	89452	Alpha-conotoxin-like Sm1.4		
+sp|P0DPQ0|COW3_CONAO	P0DPQ0	10	10	0	False	2	2.0	Conus araneosus	101286	Contryphan-Ar3		IPR011062
+sp|P0DPQ1|COW4_CONAO	P0DPQ1	10	10	0	False	2	2.0	Conus araneosus	101286	Contryphan-Ar4		IPR011062
+sp|P0DPQ2|COW2_CONFG	P0DPQ2	8	8	0	False	2	2.0	Conus frigidus	101755	Contryphan-Fr2		
+sp|P0DQH7|CRF1_CONCF	P0DQH7	12	12	0	False	0	0.0	Conus cancellatus	289020	Conorfamide-As1		
+sp|P0DQH8|CRF2_CONCF	P0DQH8	12	12	0	False	0	0.0	Conus cancellatus	289020	Conorfamide-As2		
+sp|P0DQM6|CONO1_CONML	P0DQM6	9	9	0	False	2	2.0	Conus miliaris	97181	Conopressin-M1		
+sp|P0DQM7|CONO2_CONML	P0DQM7	9	9	0	False	2	2.0	Conus miliaris	97181	Conopressin-M2		
+sp|P0DQM9|CX07_CONZO	P0DQM9	10	10	0	False	2	2.0	Conus zonatus	754466	Conotoxin Czon1107		
+sp|P0DQN0|CX69_CONCB	P0DQN0	14	14	0	False	2	2.0	Conus caracteristicus	89440	Conotoxin Cca1669		
+sp|P0DQO8|CM3L_CONRE	P0DQO8	19	19	0	False	6	6.0	Conus regius	101314	Conotoxin reg3l		
+sp|P0DQQ5|CA1C_CONCT	P0DQQ5	21	21	0	False	4	4.0	Conus catus	101291	Alpha-conotoxin CIC		IPR009958
+sp|P0DQQ6|CA1A_CONMD	P0DQQ6	14	14	0	False	4	4.0	Conus milneedwardsi	2825866	Alpha-conotoxin MilIA		
+sp|P0DQR7|CAIA_CONGE	P0DQR7	15	15	0	False	4	4.0	Conus geographus	6491	Alpha-conotoxin GIA		IPR018072
+sp|P0DQT3|MAST2_PARVS	P0DQT3	14	14	0	False	0	0.0	Parachartergus vespiceps testaceus	2893768	Polybia-MP-II		IPR013214
+sp|P0DQU9|DIRK1_BUTOC	P0DQU9	14	14	0	False	2	2.0	Buthus occitanus tunetanus	6871	RK1 peptide		
+sp|P0DQV5|CM3A_CONAC	P0DQV5	15	15	0	False	6	6.0	Conus archon	257315	Conotoxin ArchIIIA		
+sp|P0DQY0|CA1A_CONOB	P0DQY0	13	13	0	False	4	4.0	Conus obscurus	89447	Alpha-conotoxin OI		IPR018072
+sp|P0DQY1|CA1B_CONOB	P0DQY1	13	13	0	False	4	4.0	Conus obscurus	89447	Alpha-conotoxin OIB		IPR018072
+sp|P0DQZ0|CX1A_CONML	P0DQZ0	7	7	0	False	2	2.0	Conus miliaris	97181	A-conotoxin cyclic Mila		
+sp|P0DRA5|MASTA_POLDR	P0DRA5	14	14	0	False	0	0.0	Polistes dorsalis	34729	Mastoparan PDD-A		
+sp|P0DRA6|MASTB_POLDR	P0DRA6	14	14	0	False	0	0.0	Polistes dorsalis	34729	Mastoparan PDD-B		
+sp|P0DRA7|MAST_MISPH	P0DRA7	14	14	0	False	0	0.0	Mischocyttarus phthisicus	256666	Mastoparan MP		IPR013214
+sp|P0DRA8|MAST1_PARFA	P0DRA8	14	14	0	False	0	0.0	Parachartergus fraternus	91406	Agelaia-MPI		IPR013214
+sp|P0DRA9|TLCOE_LYCPR	P0DRA9	15	15	0	False	2	2.0	Lycosa praegrandis	2066575	Omega-lycotoxin-Lp1a		
+sp|P0DRC8|VM1_MACLN	P0DRC8	15	15	0	False	1	1.0	Macrovipera lebetina transmediterranea	384075	Snake venom metalloproteinase Mlp4.2		
+sp|P0DRJ8|BPPAA_BITNA	P0DRJ8	12	12	0	False	0	0.0	Bitis nasicornis	8695	Proline-rich peptide 10a-MK		
+sp|P0DRJ9|BPPAC_BITNA	P0DRJ9	10	10	0	False	0	0.0	Bitis nasicornis	8695	Proline-rich peptide 10c		
+sp|P0DRK0|BPPAC_BITRH	P0DRK0	10	10	0	False	0	0.0	Bitis rhinoceros	715877	Proline-rich peptide 10a		
+sp|P0DRK1|BPPAC_BITGA	P0DRK1	11	11	0	False	0	0.0	Bitis gabonica	8694	Proline-rich peptide 11a		
+sp|P0DRK2|BPPAB_BITNA	P0DRK2	12	12	0	False	0	0.0	Bitis nasicornis	8695	Proline-rich peptide 10b-MK		
+sp|P0DRK9|VVP1_AGKBI	P0DRK9	12	12	0	False	0	0.0	Agkistrodon bilineatus	8718	Peptide 9		
+sp|P0DRL0|PA23A_OXYSU	P0DRL0	20	20	0	False	1	1.0	Oxyuranus scutellatus	8668	Phospholipase A2 OSC3a		
+sp|P0DSK1|TX16A_MYRGU	P0DSK1	19	-1	20	True	2		Myrmecia gulosa	36170	U-myrmeciitoxin(01)-Mg6a		
+sp|P0DSL0|TX1A_MYRRB	P0DSL0	10	10	0	False	0	0.0	Myrmica rubra	106198	U1-myrmicitoxin-Mr1a		
+sp|P0DSM3|WTX1A_NEOIV	P0DSM3	20	20	0	False	0	0.0	Neoponera inversa	264722	U1-poneritoxin-Ni1a		
+sp|P0DTB7|VM2A_CROAT	P0DTB7	12	12	0	False	0	0.0	Crotalus atrox	8730	Snake venom metalloproteinase CatroxMP-II		
+sp|P0DTB8|SCX38_CENMA	P0DTB8	19	19	0	False	2	2.0	Centruroides margaritatus	29018	Toxin Cm38		IPR044062,IPR002061
+sp|P0DUA6|COW1_CONCL	P0DUA6	19	-1	20	True	2		Californiconus californicus	1736779	Contryphan-Cal1		
+sp|P0DUA7|COW2_CONCL	P0DUA7	19	-1	20	True	2		Californiconus californicus	1736779	Contryphan-Cal2		
+sp|P0DUA8|COW3_CONCL	P0DUA8	19	-1	20	True	2		Californiconus californicus	1736779	Contryphan-Cal3		
+sp|P0DUA9|COW4_CONCL	P0DUA9	19	19	20	True	2		Californiconus californicus	1736779	Contryphan-Cal4		
+sp|P0DUC3|COW_CONLE	P0DUC3	9	9	0	False	2	2.0	Conus leopardus	101306	Contryphan Le925		
+sp|P0DUC4|COW_CONZO	P0DUC4	7	7	0	False	2	2.0	Conus zonatus	754466	Contryphan Zo747/Zo763		
+sp|P0DUC5|COW_CONCS	P0DUC5	6	6	0	False	2	2.0	Conus coronatus	89441	Contryphan Co838/Co854		
+sp|P0DUC6|COW44_CONLI	P0DUC6	8	8	0	False	2	2.0	Conus lividus	89426	Contryphan Li1044/Li965		
+sp|P0DUC7|COW81_CONLI	P0DUC7	8	8	0	False	2	2.0	Conus lividus	89426	Contryphan Li981		
+sp|P0DUC8|COW34_CONLI	P0DUC8	7	7	0	False	2	2.0	Conus lividus	89426	Contryphan Li834		
+sp|P0DUQ9|COW2_CONIN	P0DUQ9	9	9	0	False	2	2.0	Conus inscriptus	257329	Contryphan-In1172		
+sp|P0DUR0|CA907_CONIN	P0DUR0	17	17	0	False	4	4.0	Conus inscriptus	257329	Alpha-conotoxin In1907		IPR009958,IPR018072
+sp|P0DUR1|CA878_CONIN	P0DUR1	17	17	0	False	4	4.0	Conus inscriptus	257329	Alpha-conotoxin In1878		IPR009958,IPR018072
+sp|P0DUR2|CA761_CONIN	P0DUR2	17	17	0	False	4	4.0	Conus inscriptus	257329	Alpha-conotoxin In1761		IPR009958,IPR018072
+sp|P0DUR3|CM696_CONIN	P0DUR3	15	15	0	False	6	6.0	Conus inscriptus	257329	Conotoxin In1696		
+sp|P0DUR4|CM746_CONIN	P0DUR4	15	15	0	False	6	6.0	Conus inscriptus	257329	Conotoxin In1746		
+sp|P0DUS2|Z11_DORVU	P0DUS2	15	-7	22	True	0		Doratifera vulnerans	1372962	Z-limacoditoxin(1)-Dv1		IPR002047
+sp|P0DUS3|Z14_DORVU	P0DUS3	15	-7	22	True	0		Doratifera vulnerans	1372962	Z-limacoditoxin(1)-Dv4		
+sp|P0DUS4|U15_DORVU	P0DUS4	13	-12	25	True	0		Doratifera vulnerans	1372962	U-limacoditoxin(1)-Dv5		
+sp|P0DUT4|UD73_DORVU	P0DUT4	15	-5	20	True	0		Doratifera vulnerans	1372962	U-limacoditoxin(13)-Dv73		
+sp|P0DUT5|UE74_DORVU	P0DUT5	17	-3	20	True	2		Doratifera vulnerans	1372962	U-limacoditoxin(14)-Dv74		
+sp|P0DUU1|T1098_CONAA	P0DUU1	9	9	0	False	4	4.0	Conus amadis	198732	Conotoxin Am1099		
+sp|P0DUU2|T1309_CONAA	P0DUU2	11	11	0	False	4	4.0	Conus amadis	198732	Conotoxin Ama1309		
+sp|P0DUU3|T1251_CONAA	P0DUU3	11	11	0	False	4	4.0	Conus amadis	198732	Conotoxin Ama1251		
+sp|P0DUU4|A1245_CONAA	P0DUU4	11	11	0	False	4	4.0	Conus amadis	198732	Conotoxin Ama1245		
+sp|P0DUV1|FLP12_SPHAA	P0DUV1	10	10	0	False	0	0.0	Sphex argentatus argentatus	2838366	FMRFamide-like peptide Sa12b		
+sp|P0DUV2|FLP5_ISOHA	P0DUV2	10	10	0	False	0	0.0	Isodontia harmandi	2838365	FMRFamide-like peptide Sh5a		
+sp|P0DUW8|ACTPA_ACTFR	P0DUW8	20	20	0	False	0	0.0	Actinia fragacea	396334	DELTA-actitoxin-Afr1b		
+sp|P0DUW9|ACTPD_ACTFR	P0DUW9	20	20	0	False	0	0.0	Actinia fragacea	396334	DELTA-actitoxin-Afr1d		
+sp|P0DV02|VKT2L_RADCR	P0DV02	15	15	0	False	2	2.0	Radianthus crispa	3122430	PI-stichotoxin-Hcr2l		
+sp|P0DV07|VT2K_RADCR	P0DV07	15	15	0	False	2	2.0	Radianthus crispa	3122430	PI-stichotoxin-Hcr2k		
+sp|P0DV64|AIP9_SCOMU	P0DV64	15	15	0	False	1	1.0	Scolopendra mutilans	2836329	Scolopendrasin-9		
+sp|P0DV80|BPP_BITRH	P0DV80	12	12	0	False	0	0.0	Bitis rhinoceros	715877	Bradykinin-potentiating peptide 10 g-AP		
+sp|P0DV81|BPPL_BITRH	P0DV81	10	10	0	False	0	0.0	Bitis rhinoceros	715877	Bradykinin-potentiating peptide-like		
+sp|P0DW31|SCXE_TITPA	P0DW31	20	20	0	False	2	2.0	Tityus pachyurus	288781	Toxin TpF21-Cocle		IPR044062
+sp|P0DX31|MAST1_EUMMI	P0DX31	14	14	0	False	0	0.0	Eumenes micado	2597558	Eumenine mastoparan-EM1		
+sp|P0DX32|MAST2_EUMMI	P0DX32	14	14	0	False	0	0.0	Eumenes micado	2597558	Eumenine mastoparan-EM2		
+sp|P0DX35|MAST1_POLRT	P0DX35	14	14	0	False	0	0.0	Polistes rothneyi	30208	Polistes mastoparan-R1		
+sp|P0DX36|MAST2_POLRT	P0DX36	14	14	0	False	0	0.0	Polistes rothneyi	30208	Polistes-mastoparan-R2		IPR013213
+sp|P0DX37|MAST3_POLRT	P0DX37	14	14	0	False	0	0.0	Polistes rothneyi	30208	Polistes-mastoparan-R3		
+sp|P0DX46|MAST8_AGEVI	P0DX46	14	14	0	False	0	0.0	Agelaia vicina	2724002	Agelaiatoxin-8		
+sp|P0DX47|RF2_ACHST	P0DX47	18	-3	21	True	1		Acharia stimulea	691692	U-limacoditoxin(13)-As2		
+sp|P0DX48|RF11_ACHST	P0DX48	14	-5	19	True	0		Acharia stimulea	691692	U-limacoditoxin(13)-As11		
+sp|P0DX49|RF54_ACHST	P0DX49	16	-7	23	True	0		Acharia stimulea	691692	U-limacoditoxin(13)-As54		
+sp|P0DX50|TX20A_PHOBO	P0DX50	11	11	0	False	3	3.0	Phoneutria boliviensis	2598454	Omega-ctenitoxin-Pb1a		
+sp|P0DX51|TX35A_PHOBO	P0DX51	11	11	0	False	0	0.0	Phoneutria boliviensis	2598454	GAMMA-ctenitoxin-Pb1a		
+sp|P0DX57|TX2_BUTLE	P0DX57	17	17	0	False	2	2.0	Buthacus leptochelys	2807509	Toxin Bl-2		
+sp|P0DX58|TX3_BUTLE	P0DX58	20	20	0	False	2	2.0	Buthacus leptochelys	2807509	Toxin Bl-3		IPR044062,IPR002061
+sp|P0DX65|O1202_POLOC	P0DX65	9	9	0	False	0	0.0	Polybia occidentalis	91432	Occidentalin-1202		
+sp|P0DXW6|TXU45_MEGOP	P0DXW6	18	-5	23	True	0		Megalopyge opercularis	1113279	U-megalopygitoxin(4)-Mo5		
+sp|P0DXW9|TXUB_MEGOP	P0DXW9	18	-11	29	True	0		Megalopyge opercularis	1113279	U-megalopygitoxin(11)-Mo28		
+sp|P0DXZ7|TXO1A_HOTFR	P0DXZ7	10	10	0	False	2	2.0	Hottentotta franzwerneri	1038076	Omega-buthitoxin-Hf1a		
+sp|P10521|BOL1_BOMPE	P10521	17	17	0	False	0	0.0	Bombus pensylvanicus	28643	Bombolitin-1		IPR012534
+sp|P12797|BRK_MEGFL	P12797	11	11	0	False	0	0.0	Megascolia flavifrons	7437	Megascoliakinin		
+sp|P13211|SRTXD_ATREN	P13211	21	21	0	False	4	4.0	Atractaspis engaddensis	1343144	Sarafotoxin-D		IPR019764,IPR001928
+sp|P17231|CRBL_VESTR	P17231	13	13	0	False	0	0.0	Vespa tropica	7450	Vespid chemotactic peptide T		
+sp|P17232|CRBL_VESMA	P17232	13	13	0	False	0	0.0	Vespa mandarinia	7446	Vespid chemotactic peptide M		
+sp|P17233|CRBL_VESAN	P17233	13	13	0	False	0	0.0	Vespa analis	7449	Vespid chemotactic peptide A		
+sp|P17234|CRBL_VESXA	P17234	13	13	0	False	0	0.0	Vespa xanthoptera	7448	Vespid chemotactic peptide X		
+sp|P17235|CRBL_VESLE	P17235	13	13	0	False	0	0.0	Vespula lewisii	7452	Vespid chemotactic peptide L		
+sp|P17236|CRBL_VESOR	P17236	14	14	0	False	0	0.0	Vespa orientalis	7447	Histamine-releasing peptide 2		
+sp|P17237|PROTO_ICASP	P17237	13	13	0	False	0	0.0	Icaria sp.	7495	Chemotactic peptide		
+sp|P17684|CKT_CONTU	P17684	21	21	0	False	0	0.0	Conus tulipa	6495	Conantokin-T		IPR005918
+sp|P28878|CA1A_CONST	P28878	13	13	0	False	4	4.0	Conus striatus	6493	Alpha-conotoxin SIA		IPR018072
+sp|P30424|BPP4_BOTIN	P30424	11	11	0	False	0	0.0	Bothrops insularis	8723	Bradykinin-potentiating peptide S4,1,2		
+sp|P30426|BPP8_BOTIN	P30426	10	10	0	False	0	0.0	Bothrops insularis	8723	Bradykinin-potentiating peptide S5,1		
+sp|P30833|ACTPA_ACTTE	P30833	20	20	0	False	0	0.0	Actinia tenebrosa	6105	Cytolysin tenebrosin-A		
+sp|P31010|TX3_PHONI	P31010	19	19	0	False	1	1.0	Phoneutria nigriventer	6918	U7-ctenitoxin-Pn1b		
+sp|P31351|BPP_VIPAS	P31351	10	10	0	False	0	0.0	Vipera aspis	8706	Bradykinin-potentiating peptide		
+sp|P33588|VSPCA_AGKBI	P33588	20	20	0	False	1	1.0	Agkistrodon bilineatus	8718	Protein C activator		
+sp|P42716|MAST_PARID	P42716	14	14	0	False	0	0.0	Parapolybia indica	31921	Parapolybia-mastoparan		IPR013213
+sp|P42717|BRK_PARID	P42717	13	13	0	False	0	0.0	Parapolybia indica	31921	Waspkinin		IPR009608
+sp|P45661|KAX_LEIQU	P45661	14	14	0	False	2	2.0	Leiurus quinquestriatus quinquestriatus	6885	Leiurutoxin-3		
+sp|P50983|CA1_CONIM	P50983	17	17	0	False	4	4.0	Conus imperialis	35631	Alpha-conotoxin ImI		IPR018072
+sp|P50984|CA1A_CONPE	P50984	16	16	0	False	4	4.0	Conus pennaceus	37335	Alpha-conotoxin PnIA		IPR018072
+sp|P56587|TERT_APIME	P56587	21	21	0	False	4	4.0	Apis mellifera	7460	Tertiapin		IPR049143
+sp|P56641|CA1C_CONAL	P56641	16	16	0	False	4	4.0	Conus aulicus	89437	Alpha-conotoxin AuIC		IPR018072
+sp|P57672|BRK_VESMC	P57672	17	17	0	False	0	0.0	Vespula maculifrons	7453	Vespulakinin-1		
+sp|P58305|TXGRX_BUNCN	P58305	21	21	0	False	0	0.0	Bunodosoma cangicum	138296	Granulitoxin		
+sp|P58396|KLPS_LYCER	P58396	14	14	0	False	0	0.0	Lycosa erythrognatha	332789	Kinin-like peptide-S		
+sp|P58570|SC18_OLIMR	P58570	20	20	0	False	2	2.0	Olivierus martensii	34649	Neurotoxin BmK 18(2)		IPR044062,IPR002061
+sp|P58623|M3A_CONBE	P58623	14	14	0	False	6	6.0	Conus betulinus	89764	Conotoxin BtIIIA		
+sp|P58624|M3B_CONBE	P58624	15	15	0	False	6	6.0	Conus betulinus	89764	BtIIIB		
+sp|P58689|ACT21_HETMG	P58689	20	20	0	False	0	0.0	Heteractis magnifica	38281	Magnificalysin I		
+sp|P58785|COWL_CONPU	P58785	8	8	0	False	2	2.0	Conus purpurascens	41690	Leu-contryphan-P		IPR011062
+sp|P58803|BRHP_CONIM	P58803	7	7	0	False	2	2.0	Conus imperialis	35631	Bromoheptapeptide Im		
+sp|P58805|CRFA1_CONSP	P58805	12	12	0	False	0	0.0	Conus spurius	192919	Conorfamide-Sr1		
+sp|P58807|CTA6A_CONMR	P58807	11	11	0	False	4	4.0	Conus marmoreus	42752	Chi-conotoxin CMrVIA		
+sp|P58810|CTA1B_CONMR	P58810	13	13	0	False	4	4.0	Conus marmoreus	42752	Chi-conotoxin MrIB		
+sp|P58841|M3A_CONQU	P58841	15	15	0	False	6	6.0	Conus quercinus	101313	Conotoxin QcIIIA		
+sp|P58842|M3B_CONQU	P58842	15	15	0	False	6	6.0	Conus quercinus	101313	Conotoxin QcIIIB		
+sp|P58848|CT5A_CONAL	P58848	11	11	0	False	4	4.0	Conus aulicus	89437	Conotoxin au5a		IPR012631
+sp|P58849|CT5B_CONAL	P58849	11	11	0	False	4	4.0	Conus aulicus	89437	Conotoxin au5b		IPR012631
+sp|P58926|CM4A_CONPE	P58926	17	17	0	False	6	6.0	Conus pennaceus	37335	Mu-conotoxin PnIVA		
+sp|P59066|PA2_AUSSU	P59066	17	17	0	False	1	1.0	Austrelaps superbus	29156	Phospholipase A2		
+sp|P59072|3S331_PSETE	P59072	11	11	0	False	1	1.0	Pseudonaja textilis	8673	Short neurotoxin N1		
+sp|P59073|3S332_PSETE	P59073	15	15	0	False	2	2.0	Pseudonaja textilis	8673	Short neurotoxin N2		
+sp|P59851|KAX2Z_CENLM	P59851	20	20	0	False	3	3.0	Centruroides limbatus	244936	Hongotoxin-5		IPR036574
+sp|P60261|SCX22_TITDI	P60261	13	13	0	False	1	1.0	Tityus discrepans	57059	Toxin TdII-2		IPR044062
+sp|P60265|SCX9_CENNO	P60265	14	14	0	False	1	1.0	Centruroides noxius	6878	Beta-toxin Cn9		IPR044062
+sp|P61094|SFIF_SEGFL	P61094	18	18	0	False	3	3.0	Segestria florentina	31925	Mu-segestritoxin-Sf1i		IPR053718,IPR012633
+sp|P69034|MAST1_PROEX	P69034	14	14	0	False	0	0.0	Protopolybia exigua	91439	Protopolybia-mastoparan-I		IPR013214
+sp|P69035|MAST2_PROEX	P69035	14	14	0	False	0	0.0	Protopolybia exigua	91439	Protopolybia-mastoparan-II		
+sp|P69036|MAST3_PROEX	P69036	14	14	0	False	0	0.0	Protopolybia exigua	91439	Protopolybia-mastoparan-III		IPR013214
+sp|P69392|PMTXB_BATMC	P69392	13	13	0	False	0	0.0	Batozonellus maculifrons	308766	Beta-pompilidotoxin		
+sp|P69436|MAST1_AGEPP	P69436	14	14	0	False	0	0.0	Agelaia pallipes pallipes	313352	Agelaia-MPI		IPR013214
+sp|P69437|PROTO_AGEPP	P69437	12	12	0	False	0	0.0	Agelaia pallipes pallipes	313352	Protonectin		
+sp|P69746|CA4A_CONOB	P69746	18	18	0	False	6	6.0	Conus obscurus	89447	Alpha-conotoxin OIVA		
+sp|P69840|GRAD_GRASX	P69840	13	13	0	False	0	0.0	Grammistes sexlineatus	270576	Grammistin Gs D		
+sp|P69842|GRA1_POGPU	P69842	13	13	0	False	0	0.0	Pogonoperca punctata	160738	Grammistin Pp 1		
+sp|P80163|SRTXB_ATRBI	P80163	21	21	0	False	4	4.0	Atractaspis bibronii	61304	Bibrotoxin		IPR019764,IPR001928
+sp|P80899|VSPCA_GLOHA	P80899	15	15	0	False	1	1.0	Gloydius halys	8714	Protein C activator		
+sp|P81863|PAP1_PARMA	P81863	10	10	0	False	0	0.0	Pardachirus marmoratus	31087	Pardaxin-1		
+sp|P81864|PAP2_PARMA	P81864	5	5	0	False	0	0.0	Pardachirus marmoratus	31087	Pardaxin-2		
+sp|P81882|VSPT1_BOTJA	P81882	19	19	0	False	1	1.0	Bothrops jararaca	8724	Thrombin-like enzyme TL-BJ 1		
+sp|P81883|VSPT2_BOTJA	P81883	19	19	0	False	1	1.0	Bothrops jararaca	8724	Thrombin-like enzyme TL-BJ 2		
+sp|P81884|VSPT3_BOTJA	P81884	19	19	0	False	1	1.0	Bothrops jararaca	8724	Thrombin-like enzyme TL-BJ 3		
+sp|P82428|WTX1F_NEOGO	P82428	20	20	0	False	0	0.0	Neoponera goeldii	3057131	M-poneritoxin-Ng1f		
+sp|P83047|COW_CONVE	P83047	9	9	0	False	2	2.0	Conus ventricosus	117992	Contryphan-Vn		IPR011062
+sp|P83058|BRK3_BOMVA	P83058	9	9	0	False	0	0.0	Bombina variegata	8348	[Thr6]-bradykinin		
+sp|P83659|BRKC_CYPDO	P83659	11	11	0	False	0	0.0	Cyphononyx dorsalis	246266	Cyphokinin		IPR009608
+sp|P83660|BRK6_CYPDO	P83660	16	16	0	False	0	0.0	Cyphononyx dorsalis	246266	Bradykinin-related peptide Cd-146		
+sp|P84026|THBI_BOTJA	P84026	15	15	0	False	0	0.0	Bothrops jararaca	8724	Thrombin inhibitor subunit 1		
+sp|P84388|PLYB1_POLPI	P84388	14	14	0	False	0	0.0	Polybia paulista	291283	Polybine-1		
+sp|P84389|PLYB2_POLPI	P84389	14	14	0	False	0	0.0	Polybia paulista	291283	Polybine-2		
+sp|P84464|TPAN2_PANIM	P84464	4	4	0	False	0	0.0	Pandinus imperator	55084	Tetrapandin-2		
+sp|P84465|TPAN1_PANIM	P84465	4	4	0	False	0	0.0	Pandinus imperator	55084	Tetrapandin-1		
+sp|P84470|VKTH8_BUNCA	P84470	15	15	0	False	1	1.0	Bungarus candidus	92438	Kunitz-type serine protease inhibitor homolog T2 B chain		
+sp|P84471|VKTH1_BUNCA	P84471	15	15	0	False	1	1.0	Bungarus candidus	92438	Kunitz-type serine protease inhibitor homolog T1-1 B chain		
+sp|P84472|PA2BT_BUNCA	P84472	14	14	0	False	0	0.0	Bungarus candidus	92438	Basic phospholipase A2 T1-2 A chain		
+sp|P84473|VKTH2_BUNCA	P84473	15	15	0	False	1	1.0	Bungarus candidus	92438	Kunitz-type serine protease inhibitor homolog T1-2 B chain		
+sp|P84474|PA2BU_BUNCA	P84474	14	14	0	False	0	0.0	Bungarus candidus	92438	Basic phospholipase A2 T2 A chain		
+sp|P84475|PA2BA_BUNCA	P84475	14	14	0	False	0	0.0	Bungarus candidus	92438	Basic phospholipase A2 T1-1 A chain		
+sp|P84497|BRK3_TRASC	P84497	9	9	0	False	0	0.0	Trachemys scripta	34903	[Thr6]-bradykinin		
+sp|P84673|BRK3_PHYSA	P84673	9	9	0	False	0	0.0	Phyllomedusa sauvagii	8395	[Val1,Thr6]-bradykinin		
+sp|P84676|SC27_TITOB	P84676	10	10	0	False	1	1.0	Tityus obscurus	1221240	Cryptide To27		
+sp|P84677|SC29_TITOB	P84677	8	8	0	False	0	0.0	Tityus obscurus	1221240	Toxin To29		
+sp|P84678|SC31_TITOB	P84678	8	8	0	False	2	2.0	Tityus obscurus	1221240	Toxin To31		
+sp|P84679|SC33_TITOB	P84679	10	10	0	False	2	2.0	Tityus obscurus	1221240	Toxin To33		
+sp|P84680|SC35_TITOB	P84680	10	10	0	False	0	0.0	Tityus obscurus	1221240	Toxin To35		
+sp|P84681|SC37_TITOB	P84681	10	10	0	False	1	1.0	Tityus obscurus	1221240	Toxin To37		
+sp|P84682|SC39_TITOB	P84682	10	10	0	False	0	0.0	Tityus obscurus	1221240	Toxin To39		
+sp|P84683|SC40_TITOB	P84683	9	9	0	False	0	0.0	Tityus obscurus	1221240	Toxin To40		
+sp|P84686|SC46_TITOB	P84686	10	10	0	False	0	0.0	Tityus obscurus	1221240	Toxin To46		
+sp|P84689|SC56_TITOB	P84689	10	10	0	False	0	0.0	Tityus obscurus	1221240	Toxin To56		
+sp|P84690|SC58_TITOB	P84690	10	10	0	False	0	0.0	Tityus obscurus	1221240	Toxin To58		
+sp|P84691|SC61_TITOB	P84691	10	10	0	False	0	0.0	Tityus obscurus	1221240	Toxin To61		
+sp|P84692|SC64_TITOB	P84692	10	10	0	False	0	0.0	Tityus obscurus	1221240	Toxin To64		
+sp|P84694|SC83_TITOB	P84694	10	10	0	False	1	1.0	Tityus obscurus	1221240	Toxin To83		
+sp|P84697|BRK2_PHYSA	P84697	11	11	0	False	0	0.0	Phyllomedusa sauvagii	8395	Phyllokinin		
+sp|P84700|CONO_CONGA	P84700	8	8	0	False	0	0.0	Conus gladiator	257327	Conophan gld-V		
+sp|P84701|CONO_CONMU	P84701	8	8	0	False	0	0.0	Conus mus	257335	Conophan mus-V		
+sp|P84713|CMO1_CONMO	P84713	13	13	0	False	0	0.0	Conus monile	351660	Kappa-conotoxin Mo1659		
+sp|P84745|VVP2_BOTJR	P84745	11	11	0	False	0	0.0	Bothrops jararacussu	8726	1095.6 Da venom vasodilator peptide		
+sp|P84746|VVP1_BOTJR	P84746	12	12	0	False	0	0.0	Bothrops jararacussu	8726	1370.6 Da venom vasodilator peptide		
+sp|P84747|VVP1_BOTMO	P84747	12	12	0	False	0	0.0	Bothrops moojeni	98334	1370.6 Da venom vasodilator peptide		
+sp|P84773|BRK_AMICA	P84773	9	9	0	False	0	0.0	Amia calva	7924	[Trp5]-bradykinin		
+sp|P84774|BRK_LEPOS	P84774	9	9	0	False	0	0.0	Lepisosteus osseus	34771	[Trp5]-bradykinin		
+sp|P84804|CRVPN_NAJHH	P84804	14	14	0	False	0	0.0	Naja haje haje	8642	Cysteine-rich venom protein 23		
+sp|P84823|BRK12_ASCTR	P84823	12	12	0	False	0	0.0	Ascaphus truei	8439	Bradykinin-like peptide AV-12		
+sp|P84824|BRK11_ASCTR	P84824	11	11	0	False	0	0.0	Ascaphus truei	8439	Bradykinin-like peptide RD-11		
+sp|P84825|BRK1_ASCTR	P84825	9	9	0	False	0	0.0	Ascaphus truei	8439	Bradykinin		
+sp|P84832|BRK10_ASCTR	P84832	10	10	0	False	0	0.0	Ascaphus truei	8439	Bradykinin-like peptide AR-10		
+sp|P84892|BRK2_PITHY	P84892	8	8	0	False	0	0.0	Pithecopus hypochondrialis	317381	Des-Arg9-[Val1,Thr6]-bradykinin		
+sp|P84893|BRK3_PITHY	P84893	8	8	0	False	0	0.0	Pithecopus hypochondrialis	317381	Des-Arg9-[Thr6]-bradykinin		
+sp|P84895|BRK1_PITHY	P84895	9	9	0	False	0	0.0	Pithecopus hypochondrialis	317381	Bradykinin		
+sp|P84896|BRK5_PITHY	P84896	9	9	0	False	0	0.0	Pithecopus hypochondrialis	317381	[Thr6]-bradykinin		
+sp|P84897|BRK6_PITHY	P84897	10	10	0	False	0	0.0	Pithecopus hypochondrialis	317381	[Val1,Hyp2,Thr6]-bradykinyl-Gln		
+sp|P84898|BRK7_PITHY	P84898	11	11	0	False	0	0.0	Pithecopus hypochondrialis	317381	[Val1,Thr6]-bradykinyl-Val,Asp		
+sp|P84901|BRKP2_PITHY	P84901	11	11	0	False	0	0.0	Pithecopus hypochondrialis	317381	[Thr6]-phyllokinin		
+sp|P84914|MAST3_POLPI	P84914	14	14	0	False	0	0.0	Polybia paulista	291283	Polybia-mastoparan-III		IPR013214
+sp|P84915|MAST2_POLPI	P84915	14	14	0	False	0	0.0	Polybia paulista	291283	Polybia-MP-II		IPR013214
+sp|P84935|BRK3_PITAZ	P84935	11	11	0	False	0	0.0	Pithecopus azureus	2034991	[Val1,Hyp2,Thr6]-bradykinyl-Gln,Ser		IPR009608
+sp|P85005|VM3PN_PROSR	P85005	15	15	0	False	1	1.0	Proatheris superciliaris	110218	Zinc metalloproteinase-disintegrin-like proatherocytin		
+sp|P85009|CA1B_CONRE	P85009	12	12	0	False	4	4.0	Conus regius	101314	Alpha-conotoxin-like Reg1b/Reg1c		
+sp|P85010|CA1D_CONRE	P85010	12	12	0	False	4	4.0	Conus regius	101314	Alpha-conotoxin-like Reg1d		
+sp|P85011|CA1E_CONRE	P85011	12	12	0	False	4	4.0	Conus regius	101314	Alpha-conotoxin-like Reg1e		IPR018072
+sp|P85012|CA1F_CONRE	P85012	13	13	0	False	4	4.0	Conus regius	101314	Alpha-conotoxin-like Reg1f		
+sp|P85014|CONOM_CONVL	P85014	7	7	0	False	0	0.0	Conus villepinii	257347	Conophan vil-M		
+sp|P85015|CONOI_CONVL	P85015	7	7	0	False	0	0.0	Conus villepinii	257347	Conophan vil-I'/vil-I'(O2P)		
+sp|P85016|CMCA_CONRE	P85016	17	17	0	False	6	6.0	Conus regius	101314	Conotoxin Reg12a		
+sp|P85017|CMCE_CONRE	P85017	16	16	0	False	6	6.0	Conus regius	101314	Conotoxin Reg12e		
+sp|P85018|CM3CF_CONRE	P85018	19	19	0	False	6	6.0	Conus regius	101314	Conotoxin Reg12f		
+sp|P85019|CM3CG_CONRE	P85019	13	13	0	False	6	6.0	Conus regius	101314	Conotoxin Reg12g		
+sp|P85020|CM3CH_CONRE	P85020	17	17	0	False	6	6.0	Conus regius	101314	Conotoxin Reg12h		
+sp|P85022|CM3CD_CONRE	P85022	15	15	0	False	6	6.0	Conus regius	101314	Conotoxin Reg12d		
+sp|P85023|CMCB_CONRE	P85023	17	17	0	False	6	6.0	Conus regius	101314	Conotoxin Reg12b		
+sp|P85024|BKIP_CROVV	P85024	11	11	0	False	0	0.0	Crotalus viridis viridis	8742	Bradykinin inhibitor peptide		
+sp|P85025|BKIP_AGKBI	P85025	12	12	0	False	0	0.0	Agkistrodon bilineatus	8718	Bradykinin inhibitor peptide		
+sp|P85038|BPP2_GLOHA	P85038	11	11	0	False	0	0.0	Gloydius halys	8714	Bradykinin-potentiating peptide 2		
+sp|P85103|VMXP_PHIPA	P85103	10	10	0	False	0	0.0	Philodryas patagoniensis	120310	Snake venom metalloproteinase patagonfibrase		
+sp|P85141|CONOV_CONVL	P85141	9	9	0	False	2	2.0	Conus villepinii	257347	Gamma-conopressin vil		
+sp|P85159|ORPO_POTOR	P85159	9	9	0	False	0	0.0	Potamotrygon orbignyi	86381	Orpotrin		
+sp|P85160|BPP7A_BOTJA	P85160	7	7	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 7a		
+sp|P85161|BPPBD_BOTJA	P85161	11	11	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 11d		
+sp|P85162|BPPCC_BOTJA	P85162	12	12	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 12c		
+sp|P85163|BPPEA_BOTJA	P85163	14	14	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 14a		
+sp|P85165|BPPXA_PITHY	P85165	10	10	0	False	0	0.0	Pithecopus hypochondrialis	317381	Bradykinin-potentiating peptide Phypo Xa		
+sp|P85168|BPPCA_BOTJA	P85168	12	12	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 12a		
+sp|P85169|BPPDB_BOTJA	P85169	13	13	0	False	0	0.0	Bothrops jararaca	8724	Bradykinin-potentiating peptide 13b		
+sp|P85235|TX36A_CTEON	P85235	18	18	0	False	5	5.0	Ctenus ornatus	406443	U11-ctenitoxin-Co1a		
+sp|P85274|TX90A_CTEON	P85274	12	12	0	False	2	2.0	Ctenus ornatus	406443	U7-ctenitoxin-Co1a		
+sp|P85429|3SA1F_NAJAT	P85429	15	15	0	False	2	2.0	Naja atra	8656	Cytotoxin 1f		
+sp|P85871|CRFA2_CONSP	P85871	12	12	0	False	0	0.0	Conus spurius	192919	Conorfamide-Sr2		
+sp|P85873|BRK_POLMJ	P85873	11	11	0	False	0	0.0	Polistes major	91420	Wasp kinin PMM1		IPR009608
+sp|P85874|MAST_POLMJ	P85874	17	17	0	False	0	0.0	Polistes major	91420	Mastoparan-like PMM		
+sp|P85885|BRK4_PITAZ	P85885	9	9	0	False	0	0.0	Pithecopus azureus	2034991	[Hyp3]-bradykinin		
+sp|P85975|VMPAR_HIPPR	P85975	19	19	0	False	0	0.0	Hippasa partita	547193	Zinc metalloproteinase partitagin		
+sp|P86035|BRK3_PELRI	P86035	9	9	0	False	0	0.0	Pelophylax ridibundus	8406	[Asp6]-bradykinin		
+sp|P86105|KAX6X_OPICY	P86105	14	14	0	False	2	2.0	Opisthacanthus cayaporum	573324	Potassium channel toxin alpha-KTx 6 OcyKTx4		
+sp|P86117|TX3_OPICY	P86117	13	13	0	False	2	2.0	Opisthacanthus cayaporum	573324	Toxin OcyKTx3		
+sp|P86121|KBX3L_OPICY	P86121	15	15	0	False	0	0.0	Opisthacanthus cayaporum	573324	Scorpine-like		
+sp|P86156|BRK1_PELRI	P86156	16	16	0	False	0	0.0	Pelophylax ridibundus	8406	Bradykinin RL-16-1		
+sp|P86157|BRK2_PELRI	P86157	11	11	0	False	0	0.0	Pelophylax ridibundus	8406	[Thr6]-bradykinin RA-11		
+sp|P86255|CONO_CONTE	P86255	8	8	0	False	2	2.0	Conus textile	6494	Conopressin-Tx		
+sp|P86256|CTAB_CONTE	P86256	12	12	0	False	4	4.0	Conus textile	6494	Chi-conotoxin-like 1		
+sp|P86257|CTAC_CONTE	P86257	12	12	0	False	4	4.0	Conus textile	6494	Chi-conotoxin-like 2		
+sp|P86258|CT5B_CONTE	P86258	14	14	0	False	4	4.0	Conus textile	6494	Conotoxin tx5b		
+sp|P86259|CT5C_CONTE	P86259	14	14	0	False	4	4.0	Conus textile	6494	Conotoxin tx5c		
+sp|P86260|M3D_CONTE	P86260	16	16	0	False	6	6.0	Conus textile	6494	Conotoxin tx3d		
+sp|P86261|CA1C_CONTE	P86261	16	16	0	False	4	4.0	Conus textile	6494	Alpha-conotoxin Tx1C		
+sp|P86262|M3E_CONTE	P86262	17	17	0	False	6	6.0	Conus textile	6494	Conotoxin tx3e		
+sp|P86263|M5_CONTE	P86263	19	19	0	False	6	6.0	Conus textile	6494	Conotoxin 5		
+sp|P86264|CT5D_CONTE	P86264	15	15	0	False	4	4.0	Conus textile	6494	Conotoxin tx5d		
+sp|P86295|PORFL_POTOR	P86295	18	18	0	False	0	0.0	Potamotrygon orbignyi	86381	Porflan		
+sp|P86348|ALPH_DEIAC	P86348	20	20	0	False	0	0.0	Deinagkistrodon acutus	36307	Alkaline phosphatase		
+sp|P86362|CAEA_CONTS	P86362	20	20	0	False	4	4.0	Conus tessulatus	101317	Alpha-conotoxin-like ts14a		
+sp|P86426|BRK5_PITNO	P86426	8	8	0	False	0	0.0	Pithecopus nordestinus	2034992	Bradykinin-related peptide Pnor-5		
+sp|P86427|BRK7_PITNO	P86427	8	8	0	False	0	0.0	Pithecopus nordestinus	2034992	Bradykinin-related peptide Pnor-7		
+sp|P86428|BRK3_PITNO	P86428	6	6	0	False	0	0.0	Pithecopus nordestinus	2034992	Bradykinin-related peptide Pnor-3		
+sp|P86446|HKS_HELSS	P86446	10	10	0	False	0	0.0	Heloderma suspectum suspectum	709964	Helokinestatin-1		
+sp|P86447|HKS_HELHO	P86447	10	10	0	False	0	0.0	Heloderma horridum horridum	8552	Helokinestatin-1		
+sp|P86525|PA2HC_ACAAN	P86525	20	20	0	False	1	1.0	Acanthophis antarcticus	8605	Phospholipase A2 homolog P-elapitoxin-Aa1a gamma chain		
+sp|P86530|VSP1_DABRR	P86530	16	16	0	False	1	1.0	Daboia russelii	8707	Vipera russelli proteinase RVV-V homolog 1		
+sp|P86531|VSP2_DABRR	P86531	15	15	0	False	1	1.0	Daboia russelii	8707	Vipera russelli proteinase RVV-V homolog 2		
+sp|P86532|VSP4_DABRR	P86532	16	16	0	False	1	1.0	Daboia russelii	8707	Vipera russelli proteinase RVV-V homolog 4		
+sp|P86535|OXLA1_DABRR	P86535	20	20	0	False	1	1.0	Daboia russelii	8707	L-amino-acid oxidase L1		
+sp|P86536|VM3CX_DABRR	P86536	19	19	0	False	0	0.0	Daboia russelii	8707	Coagulation factor X-activating enzyme heavy chain		
+sp|P86537|CRVP_DABRR	P86537	10	10	0	False	0	0.0	Daboia russelii	8707	Cysteine-rich venom protein		
+sp|P86627|BRK1_PHAJA	P86627	9	9	0	False	0	0.0	Phasmahyla jandaia	762504	Bradykinin		
+sp|P86628|BRK2_PHAJA	P86628	8	8	0	False	0	0.0	Phasmahyla jandaia	762504	Des-Arg9-bradykinin		
+sp|P86629|BRK3_PHAJA	P86629	9	9	0	False	0	0.0	Phasmahyla jandaia	762504	[Thr6]-bradykinin		
+sp|P86630|BRK4_PHAJA	P86630	8	8	0	False	0	0.0	Phasmahyla jandaia	762504	Des-Arg9-[Thr6]-bradykinin		
+sp|P86631|BRKP1_PHAJA	P86631	11	11	0	False	0	0.0	Phasmahyla jandaia	762504	Phyllokinin		
+sp|P86632|BRKP2_PHAJA	P86632	11	11	0	False	0	0.0	Phasmahyla jandaia	762504	[Thr6]-Phyllokinin		
+sp|P86643|BPPXA_PHAJA	P86643	10	10	0	False	0	0.0	Phasmahyla jandaia	762504	Bradykinin-potentiating peptide Phypo Xa		
+sp|P86721|BPP12_BOTAT	P86721	12	12	0	False	0	0.0	Bothrops atrox	8725	Bradykinin-potentiating peptide 12a		
+sp|P86811|BRK1_PHYSG	P86811	8	8	0	False	0	0.0	Physalaemus signifer	364768	Des-Arg9-[Ala1,Thr6]-bradykinin		
+sp|P86812|BRK2_PHYSG	P86812	9	9	0	False	0	0.0	Physalaemus signifer	364768	[Ala1,Thr6]-bradykinin		
+sp|P86813|BRK3_PHYSG	P86813	10	10	0	False	0	0.0	Physalaemus signifer	364768	[Ala1,Thr6]-bradykinyl-Ser		
+sp|P86814|BRK4_PHYSG	P86814	11	11	0	False	0	0.0	Physalaemus signifer	364768	[Ala1,Thr6]-bradykinyl-Ser,Lys		IPR009608
+sp|P86815|BRK5_PHYSG	P86815	13	13	0	False	0	0.0	Physalaemus signifer	364768	[Ala1,Thr6]-bradykinyl-Ser,Lys,Ala,Val		IPR009608
+sp|P86816|BRK6_PHYSG	P86816	11	11	0	False	0	0.0	Physalaemus signifer	364768	[Ala1,Thr6,Ala11]-phyllokinin		
+sp|P86817|BRK7_PHYSG	P86817	11	11	0	False	0	0.0	Physalaemus signifer	364768	[Ala1,Thr6,Asp11]-phyllokinin		
+sp|P86818|BRK8_PHYSG	P86818	11	11	0	False	0	0.0	Physalaemus signifer	364768	[Ala1,Thr6]-phyllokinin		
+sp|P86819|BRK9_PHYSG	P86819	10	10	0	False	0	0.0	Physalaemus signifer	364768	Des-Arg1-[Thr6]-phyllokinin		
+sp|P86820|BRK10_PHYSG	P86820	8	8	0	False	0	0.0	Physalaemus signifer	364768	Des-Arg1,Pro2,Pro3-[Thr6]-phyllokinin		
+sp|P86828|NDB4V_TITSE	P86828	8	8	0	False	0	0.0	Tityus serrulatus	6887	Venom peptide 7.1		
+sp|P86942|CUGA_CONPB	P86942	11	11	0	False	4	4.0	Conus pictus	1042615	Conotoxin pc16a		
+sp|Q7LZ24|SLLC2_VIPAP	Q7LZ24	13	13	0	False	2	2.0	Vipera aspis aspis	194601	Snaclec coagulation factor X-activating enzyme light chain 2		
+sp|Q7LZ26|XI_DEIAC	Q7LZ26	12	12	0	False	0	0.0	Deinagkistrodon acutus	36307	Coagulation factor X inhibitor		
+sp|Q7LZ52|BRKP_PITRO	Q7LZ52	11	11	0	False	0	0.0	Pithecopus rohdei	8394	Phyllokinin		
+sp|Q7LZ53|BRK3_PELNI	Q7LZ53	14	14	0	False	0	0.0	Pelophylax nigromaculatus	8409	Bradykinin-like peptide 3		
+sp|Q7LZ54|BRK1_PELNI	Q7LZ54	9	9	0	False	0	0.0	Pelophylax nigromaculatus	8409	Bradykinin-like peptide 1		
+sp|Q7LZF4|VSP4A_CERCE	Q7LZF4	15	15	0	False	0	0.0	Cerastes cerastes	8697	Snake venom serine protease IVa		
+sp|Q7LZJ1|VM1_CROMN	Q7LZJ1	12	12	0	False	0	0.0	Crotalus molossus nigrescens	8734	Snake venom metalloproteinase		
+sp|Q7M3P1|TXV1_PHONI	Q7M3P1	8	8	0	False	0	0.0	Phoneutria nigriventer	6918	U28-ctenitoxin-Pn1a		
+sp|Q7M3T2|BRK_VESXA	Q7M3T2	12	12	0	False	0	0.0	Vespa xanthoptera	7448	Vespakinin-X		
+sp|Q7M3T3|BRK_VESMA	Q7M3T3	12	12	0	False	0	0.0	Vespa mandarinia	7446	Vespakinin-M		
+sp|Q86QT2|APAM_APICC	Q86QT2	19	-8	27	True	4		Apis cerana cerana	94128	Apamin		IPR035361
+sp|Q8I6R5|CA12_CONIM	Q8I6R5	17	17	0	False	4	4.0	Conus imperialis	35631	Alpha-conotoxin ImII		
+sp|Q9BP45|M233_CONPE	Q9BP45	20	20	0	False	6	6.0	Conus pennaceus	37335	Conotoxin PnMLKM-D0211		
+sp|Q9BP49|CUU1_CONTS	Q9BP49	20	20	0	False	4	4.0	Conus tessulatus	101317	Conotoxin TsMEKL-02		
+sp|Q9PRW2|VSP3_CROAT	Q9PRW2	15	15	0	False	1	1.0	Crotalus atrox	8730	Alpha-fibrinogenase A3		
+sp|Q9PRW3|VSPA2_CROAT	Q9PRW3	15	15	0	False	1	1.0	Crotalus atrox	8730	Alpha-fibrinogenase A2		
+sp|Q9PRW4|VSPA1_CROAT	Q9PRW4	21	21	0	False	1	1.0	Crotalus atrox	8730	Alpha-fibrinogenase A1		
+sp|Q9PRZ1|BRK_ONCMY	Q9PRZ1	10	10	0	False	0	0.0	Oncorhynchus mykiss	8022	Lysyl-bradykinin-like		
+sp|Q9TWR4|NDB11_TITSE	Q9TWR4	13	13	0	False	0	0.0	Tityus serrulatus	6887	Bradykinin-potentiating peptide T		
+sp|Q9TWR5|TXV2_PHONI	Q9TWR5	20	20	0	False	2	2.0	Phoneutria nigriventer	6918	U27-ctenitoxin-Pn1a		
+sp|X1WB75|CA1A_CONLG	X1WB75	18	18	0	False	4	4.0	Conasprella longurionis	1077918	Alpha-conotoxin Lo1a		IPR009958,IPR018072

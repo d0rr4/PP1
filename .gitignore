@@ -50,3 +50,9 @@ venv/
 
 # Logs
 *.log
+.venv/
+.DS_Store
+.venv/
+.venv/
+data/trial_data/
+.DS_Store
