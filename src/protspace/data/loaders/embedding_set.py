@@ -36,6 +36,11 @@ METHOD_DISPLAY_NAMES: dict[str, str] = {
     "mds": "MDS",
     "localmap": "LocalMAP",
     "rhopca": "rhoPCA",
+    "densmap": "densMAP",
+    "trimap": "TriMAP",
+    "phate": "PHATE",
+    "irhopca": "irhoPCA",
+    "cpca": "cPCA",
 }
 
 
@@ -52,6 +57,7 @@ _PARAM_ABBREVS: dict[str, str] = {
     "n_init": "ni",
     "max_iter": "mi",
     "eps": "e",
+    "component_start": "cs",
 }
 
 

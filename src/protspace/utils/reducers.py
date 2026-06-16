@@ -27,6 +27,11 @@ from protspace.utils.constants import (  # noqa: F401
     TSNE_NAME,
     UMAP_NAME,
     RHOPCA_NAME,
+    DENSEMAP_NAME,
+    TRIMAP_NAME,
+    PHATE_NAME,
+    IRHOPCA_NAME,
+    CPCA_NAME,
     DimensionReductionConfig,
 )
 
@@ -238,7 +243,10 @@ class PCAReducer(DimensionReducer):
     def fit_transform(self, data: np.ndarray) -> np.ndarray:
         solver = "arpack"
         n_samples, n_annotations = data.shape
-        k = self.config.n_components
+        n_out = self.config.n_components
+        cs = getattr(self.config, "component_start", 1)
+        # Total PCs to compute = output dims + (start offset - 1)
+        k = n_out + cs - 1
 
         # ARPACK requires n_components < min(shape), fallback to full SVD otherwise
         if k >= min(n_samples, n_annotations):
@@ -253,7 +261,8 @@ class PCAReducer(DimensionReducer):
             result = pca.fit_transform(data)
             self.explained_variance = pca.explained_variance_ratio_.tolist()
             self.used_solver = solver  # Store the solver that was actually used
-            return result
+            # Slice to the requested component range (1-indexed)
+            return result[:, cs - 1: cs - 1 + n_out]
         except Exception as e:
             logger.error(f"PCA failed using '{solver}' solver: {e}")
             raise
@@ -262,6 +271,7 @@ class PCAReducer(DimensionReducer):
         """Get parameters used for the reduction."""
         params = {
             "n_components": self.config.n_components,
+            "component_start": self.config.component_start,
             # Report the solver used, default to 'arpack' if not set yet
             "svd_solver": getattr(self, "used_solver", "arpack"),
         }
@@ -324,6 +334,8 @@ class rhoPCAReducer(DimensionReducer):
         
         scale_var = getattr(self.config, "scale_variance", True)
         dims = getattr(self.config, "n_components", 2)
+        cs = getattr(self.config, "component_start", 1)
+        total_needed = dims + cs - 1
         
         # testing
         #print(f"Doing rhoPCA with dims: {dims}")
@@ -341,11 +353,11 @@ class rhoPCAReducer(DimensionReducer):
         
         if hasattr(model, 'target_proj') and model.target_proj is not None:
             full_embeddings = np.array(model.target_proj)
-            full_embeddings = full_embeddings[:, :dims]
+            full_embeddings = full_embeddings[:, :total_needed]
         if full_embeddings is None and hasattr(model, 'loadings'):
             loadings = model.loadings
             if loadings is not None:
-                v_slice = loadings[:, :dims]
+                v_slice = loadings[:, :total_needed]
                 full_embeddings = np.dot(X, v_slice)[:len(target_data)]
                 
         if full_embeddings is None:
@@ -353,15 +365,224 @@ class rhoPCAReducer(DimensionReducer):
                 f"Could not extract target projections or loadings from rhoPCA.\n"
                 f"Available attributes: {[a for a in dir(model) if not a.startswith('__')]}"
             )
-            
-        return full_embeddings
+        
+        # Slice to the requested component range (1-indexed)
+        return full_embeddings[:, cs - 1: cs - 1 + dims]
     
     def get_params(self) -> dict[str, Any]:
         return {
             "n_components": getattr(self.config, "n_components", 2),
-            "scale_variance": getattr(self.config, "scale_variance", True)
+            "scale_variance": getattr(self.config, "scale_variance", True),
+            "component_start": getattr(self.config, "component_start", 1),
         }
-        
+
+
+class irhoPCAReducer(DimensionReducer):
+    """irhoPCA — inverse rhoPCA: swap target/background labels so rhoPCA
+    finds background-dominant directions, then project the original target
+    data onto those axes.
+
+    Answers: "When the background undergoes its major variations, what are
+    my target proteins doing in that same feature space?"
+
+    Uses the rhopca package with swapped labels — no manual eigendecomposition.
+    Reuses existing config fields: n_components, component_start, scale_variance.
+    """
+
+    def fit_transform(
+        self, data: np.ndarray, background_data: np.ndarray = None
+    ) -> np.ndarray:
+        # --- Load background (same pattern as rhoPCAReducer) ---
+        if background_data is None:
+            bg_path_str = None
+            if "--background" in sys.argv:
+                try:
+                    idx = sys.argv.index("--background")
+                    bg_path_str = sys.argv[idx + 1]
+                except IndexError:
+                    pass
+
+            if bg_path_str:
+                bg_path = Path(bg_path_str)
+                if not bg_path.exists():
+                    raise FileNotFoundError(
+                        f"The background file specified in the command line "
+                        f"does not exist: {bg_path.resolve()}"
+                    )
+                logger.info(
+                    "irhoPCA: reading background matrix from CLI: %s", bg_path
+                )
+                with h5py.File(bg_path, "r") as f:
+                    first_key = list(f.keys())[0]
+                    if f[first_key].ndim == 1:
+                        background_data = np.vstack(
+                            [f[key][:] for key in f.keys()]
+                        )
+                    else:
+                        background_data = np.array(f[first_key])
+
+        if background_data is None:
+            raise ValueError(
+                "irhoPCA requires background data. Provide it via the "
+                "--background CLI flag."
+            )
+
+        target_data = data
+
+        # --- Step 1: Stack with background FIRST (it becomes the "target") ---
+        X = np.vstack([background_data, target_data])
+        labels = ["target"] * len(background_data) + ["background"] * len(
+            target_data
+        )
+
+        adata = ad.AnnData(X)
+        adata.obs["group"] = pd.Categorical(labels)
+
+        scale_var = getattr(self.config, "scale_variance", True)
+        dims = getattr(self.config, "n_components", 2)
+        cs = getattr(self.config, "component_start", 1)
+        total_needed = dims + cs - 1
+
+        # --- Step 2: Run rhoPCA — finds directions where bg varies & target doesn't ---
+        model = rhoPCA(
+            adata,
+            contrast_column="group",
+            target="target",  # background data labeled as "target"
+            background="background",  # real target data labeled as "background"
+            scale_variance=scale_var,
+        )
+        model.fit()
+
+        # --- Step 3: Extract loading vectors ---
+        if not hasattr(model, "loadings") or model.loadings is None:
+            raise KeyError(
+                "irhoPCA: could not extract loadings from rhoPCA model. "
+                f"Available attributes: "
+                f"{[a for a in dir(model) if not a.startswith('__')]}"
+            )
+
+        W = np.array(model.loadings[:, :total_needed])  # shape (d, k)
+
+        # --- Step 4: Project the ORIGINAL target data onto these axes ---
+        X_target_centered = target_data - target_data.mean(axis=0, keepdims=True)
+        scores = X_target_centered @ W  # (n_target, k)
+
+        # Slice to the requested component range (1-indexed)
+        return scores[:, cs - 1: cs - 1 + dims]
+
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": getattr(self.config, "n_components", 2),
+            "scale_variance": getattr(self.config, "scale_variance", True),
+            "component_start": getattr(self.config, "component_start", 1),
+        }
+
+
+class CPCAReducer(DimensionReducer):
+    """cPCA — contrastive PCA via the `contrastive` package.
+
+    C = cov(foreground) − α · cov(background).  α controls the contrast
+    strength: positive suppresses background variance, negative boosts it,
+    zero recovers standard PCA.
+
+    Default α = None → CPCA auto-selects α via spectral gap heuristics.
+    """
+
+    def fit_transform(
+        self, data: np.ndarray, background_data: np.ndarray = None
+    ) -> np.ndarray:
+        from contrastive import CPCA
+
+        # --- Load background ---
+        if background_data is None:
+            bg_path_str = None
+            if "--background" in sys.argv:
+                try:
+                    idx = sys.argv.index("--background")
+                    bg_path_str = sys.argv[idx + 1]
+                except IndexError:
+                    pass
+
+            if bg_path_str:
+                bg_path = Path(bg_path_str)
+                if not bg_path.exists():
+                    raise FileNotFoundError(
+                        f"The background file specified in the command line "
+                        f"does not exist: {bg_path.resolve()}"
+                    )
+                logger.info(
+                    "cPCA: reading background matrix from CLI: %s", bg_path
+                )
+                with h5py.File(bg_path, "r") as f:
+                    first_key = list(f.keys())[0]
+                    if f[first_key].ndim == 1:
+                        background_data = np.vstack(
+                            [f[key][:] for key in f.keys()]
+                        )
+                    else:
+                        background_data = np.array(f[first_key])
+
+        if background_data is None:
+            raise ValueError(
+                "cPCA requires background data. Provide it via the "
+                "--background CLI flag."
+            )
+
+        target_data = data
+        dims = self.config.n_components
+        cs = getattr(self.config, "component_start", 1)
+        total_needed = dims + cs - 1
+        standardize = getattr(self.config, "scale_variance", True)
+        alpha = getattr(self.config, "cpca_alpha", None)
+
+        # --- Fit + transform ---
+        # CPCA requires d < n_bg for its internal eigendecomposition.
+        # When d > n_bg (common for protein embeddings: 1024 dims vs ~1000
+        # background samples), we PCA-preprocess first to avoid a shape
+        # mismatch in the contrastive package.
+        n_bg = background_data.shape[0]
+        if n_bg <= background_data.shape[1]:
+            pca_dim = min(n_bg - 1, 100)
+            logger.info(
+                "cPCA: n_background (%d) <= d (%d) — applying PCA to %d dims "
+                "before contrastive analysis.",
+                n_bg, background_data.shape[1], pca_dim,
+            )
+            pca_pre = PCA(n_components=pca_dim, random_state=42)
+            target_data = pca_pre.fit_transform(target_data)
+            background_data = pca_pre.transform(background_data)
+
+        model = CPCA(
+            n_components=total_needed,
+            standardize=standardize,
+            verbose=False,
+        )
+        scores = model.fit_transform(
+            target_data,
+            background_data,
+            alpha_selection="manual" if alpha is not None else "auto",
+            alpha_value=alpha,
+        )
+
+        # When auto-selecting, CPCA returns a list of arrays (one per α).
+        # Take the first (best) one.
+        if isinstance(scores, list):
+            scores = scores[0]
+        else:
+            scores = np.array(scores)
+
+        # Slice to the requested component range (1-indexed)
+        return scores[:, cs - 1: cs - 1 + dims]
+
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": getattr(self.config, "n_components", 2),
+            "standardize": getattr(self.config, "scale_variance", True),
+            "component_start": getattr(self.config, "component_start", 1),
+            "alpha": getattr(self.config, "cpca_alpha", None),
+        }
+
+
 class TSNEReducer(DimensionReducer):
     """t-SNE (t-Distributed Stochastic Neighbor Embedding) reduction."""
 
@@ -408,6 +629,123 @@ class UMAPReducer(DimensionReducer):
             "min_dist": self.config.min_dist,
             "metric": self.config.metric,
             "random_state": self.config.random_state,
+        }
+
+
+class DensMAPReducer(DimensionReducer):
+    """densMAP — density-preserving UMAP reduction.
+
+    Built into umap-learn >= 0.5.0.  Uses the same parameters as UMAP
+    but sets densmap=True to preserve local density information.
+    """
+
+    def fit_transform(self, data: np.ndarray) -> np.ndarray:
+        from umap import UMAP
+
+        return UMAP(
+            n_components=self.config.n_components,
+            n_neighbors=self.config.n_neighbors,
+            min_dist=self.config.min_dist,
+            metric=self.config.metric,
+            random_state=self.config.random_state,
+            densmap=True,
+        ).fit_transform(data)
+
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": self.config.n_components,
+            "n_neighbors": self.config.n_neighbors,
+            "min_dist": self.config.min_dist,
+            "metric": self.config.metric,
+            "random_state": self.config.random_state,
+            "densmap": True,
+        }
+
+
+class TrimapReducer(DimensionReducer):
+    """TriMAP — triplet-based manifold reduction.
+
+    Uses TriMAP's own defaults for all behavioural parameters (n_inliers=12,
+    n_outliers=4, lr=0.1, n_iters=400).  Only n_components and metric are
+    shared with the general config — everything else respects TriMAP defaults
+    unless explicitly overridden via the CLI.
+    """
+
+    def fit_transform(self, data: np.ndarray) -> np.ndarray:
+        import trimap
+
+        return trimap.TRIMAP(
+            n_dims=self.config.n_components,
+            n_inliers=self.config.trimap_n_inliers,
+            n_outliers=self.config.trimap_n_outliers,
+            distance=self.config.metric,
+            lr=self.config.trimap_lr,
+            n_iters=self.config.trimap_n_iters,
+            apply_pca=self.config.trimap_apply_pca,
+            n_random=3,
+            weight_temp=0.5,
+            opt_method="dbd",
+            verbose=False,
+        ).fit_transform(data)
+
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": self.config.n_components,
+            "n_inliers": self.config.trimap_n_inliers,
+            "n_outliers": self.config.trimap_n_outliers,
+            "metric": self.config.metric,
+            "lr": self.config.trimap_lr,
+            "n_iters": self.config.trimap_n_iters,
+            "apply_pca": self.config.trimap_apply_pca,
+        }
+
+
+class PhateReducer(DimensionReducer):
+    """PHATE — Potential of Heat-diffusion for Affinity-based Transition Embedding.
+
+    Uses PHATE's own defaults for all behavioural parameters (knn=5,
+    decay=40, t="auto", gamma=1.0).  Only n_components and metric are
+    shared with the general config.
+
+    Note: PHATE subsamples to n_landmark points by default (2000).
+    For datasets larger than this, increase phate_n_landmark or the
+    output will represent only a subset of your proteins.
+    """
+
+    def fit_transform(self, data: np.ndarray) -> np.ndarray:
+        import phate
+
+        # Resolve t: "auto" stays as "auto", numeric strings become int
+        t_val = self.config.phate_t
+        if t_val != "auto":
+            try:
+                t_val = int(t_val)
+            except ValueError:
+                pass  # keep as string (e.g. malformed, let PHATE error)
+
+        return phate.PHATE(
+            n_components=self.config.n_components,
+            knn=self.config.phate_knn,
+            decay=self.config.phate_decay,
+            n_landmark=self.config.phate_n_landmark,
+            t=t_val,
+            gamma=self.config.phate_gamma,
+            n_pca=self.config.phate_n_pca,
+            knn_dist=self.config.metric,
+            n_jobs=1,
+            verbose=False,
+        ).fit_transform(data)
+
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": self.config.n_components,
+            "knn": self.config.phate_knn,
+            "decay": self.config.phate_decay,
+            "n_landmark": self.config.phate_n_landmark,
+            "t": self.config.phate_t,
+            "gamma": self.config.phate_gamma,
+            "n_pca": self.config.phate_n_pca,
+            "metric": self.config.metric,
         }
 
 

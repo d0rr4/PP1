@@ -10,7 +10,7 @@ import shutil
 from collections import Counter
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -58,6 +58,20 @@ class ReducerParams:
     n_init: int = 4
     max_iter: int = 300
     eps: float = 1e-6
+    component_start: int = 1
+    cpca_alpha: float = None
+    densmap: bool = False
+    trimap_n_inliers: int = 12
+    trimap_n_outliers: int = 4
+    trimap_lr: float = 0.1
+    trimap_n_iters: int = 400
+    trimap_apply_pca: bool = True
+    phate_knn: int = 5
+    phate_decay: int = 40
+    phate_n_landmark: int = None
+    phate_t: str = "auto"
+    phate_gamma: float = 1.0
+    phate_n_pca: int = 100
 
 
 @dataclass(frozen=True)
@@ -108,6 +122,15 @@ _FIELD_TYPES = {f.name: f.type for f in fields(ReducerParams)}
 def _coerce_value(key: str, raw: str) -> int | float | str:
     """Coerce a string value to the appropriate type for the given parameter."""
     expected = _FIELD_TYPES.get(key)
+    # Handle Optional[X] / X | None union types
+    if hasattr(expected, "__args__"):
+        for arg in expected.__args__:
+            if arg is type(None):
+                continue
+            if arg is int:
+                return int(raw)
+            if arg is float:
+                return float(raw)
     if expected is int:
         return int(raw)
     if expected is float:
@@ -730,8 +753,8 @@ class ReductionPipeline:
                         # Tell the reducer config validation to bypass the [2, 3] check
                         effective_params["validate_dims"] = False
                     #################################################################
-                    # rhoPCA
-                    if method.lower().startswith("rhopca"):
+                    # rhoPCA / irhoPCA / cPCA (all need background)
+                    if method.lower().startswith("rhopca") or method.lower() in ("irhopca", "cpca"):
                         if not self.config.background_path:
                             raise ValueError(
                                 "rhoPCA requires a background matrix configuration. "
