@@ -15,6 +15,11 @@ import h5py
 import sys
 from pathlib import Path
 from rhopca.methods import rhoPCA
+import pacmap
+import trimap
+import phate
+
+
 
 # Re-export constants and config from lightweight module
 from protspace.utils.constants import (  # noqa: F401
@@ -27,6 +32,9 @@ from protspace.utils.constants import (  # noqa: F401
     TSNE_NAME,
     UMAP_NAME,
     RHOPCA_NAME,
+    DENSMAP_NAME,
+    TRIMAP_NAME,
+    PHATE_NAME,
     DimensionReductionConfig,
 )
 
@@ -114,7 +122,10 @@ def _ensure_annoy_or_fallback() -> None:
         from pacmap import LocalMAP, PaCMAP
         from umap import UMAP
         from rhopca.methods import rhoPCA
-
+        from phate import PHATE
+        from trimap import TRIMAP
+        from umap import UMAP
+        
         method_map = {
             TSNE_NAME: TSNE,
             PCA_NAME: PCA,
@@ -122,7 +133,10 @@ def _ensure_annoy_or_fallback() -> None:
             PACMAP_NAME: PaCMAP,
             MDS_NAME: MDS,
             LOCALMAP_NAME: LocalMAP,
-            RHOPCA_NAME: rhoPCA
+            RHOPCA_NAME: rhoPCA,
+            DENSMAP_NAME: UMAP,
+            TRIMAP_NAME: TRIMAP,
+            PHATE_NAME: PHATE
         }
 
         if method not in method_map:
@@ -298,7 +312,7 @@ class rhoPCAReducer(DimensionReducer):
                         f"The background file specified in the command line does not exist: {bg_path.resolve()}"
                     )
                 
-                print(f"--> rhoPCA explicitly reading background matrix from CLI: {bg_path}")
+                #print(f"--> rhoPCA explicitly reading background matrix from CLI: {bg_path}")
                 with h5py.File(bg_path, "r") as f:
                     first_key = list(f.keys())[0]
                     if f[first_key].ndim == 1:
@@ -481,5 +495,78 @@ class MDSReducer(DimensionReducer):
             "n_init": self.config.n_init,
             "max_iter": self.config.max_iter,
             "eps": self.config.eps,
+            "random_state": self.config.random_state,
+        }
+        
+class DensMAPReducer(DimensionReducer):
+    """densMAP (Density-Preserving UMAP) reduction."""
+
+    def fit_transform(self, data: np.ndarray) -> np.ndarray:
+        from umap import UMAP
+        return UMAP(
+            n_components=self.config.n_components,
+            n_neighbors=self.config.n_neighbors,
+            min_dist=self.config.min_dist,
+            metric=self.config.metric,
+            random_state=self.config.random_state,
+            densmap=True, # Enforces density preservation
+        ).fit_transform(data)
+
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": self.config.n_components,
+            "n_neighbors": self.config.n_neighbors,
+            "min_dist": self.config.min_dist,
+            "metric": self.config.metric,
+            "random_state": self.config.random_state,
+            "densmap": True,
+        }
+    
+class TriMapReducer(DimensionReducer):
+    """TriMap reduction."""
+
+    def fit_transform(self, data: np.ndarray) -> np.ndarray:
+        from trimap import TRIMAP
+        from threadpoolctl import threadpool_limits  # <-- Import this helper
+
+        # Force all underlying OpenMP/BLAS libraries to use 1 thread safely 
+        # during TriMap's nearest-neighbor calculations.
+        with threadpool_limits(limits=1, user_api='blas'), \
+             threadpool_limits(limits=1, user_api='openmp'):
+            
+            reducer = TRIMAP(
+                n_dims=self.config.n_components, 
+                n_inliers=getattr(self.config, "n_inliers", 10),
+                n_outliers=getattr(self.config, "n_outliers", 5),
+            )
+            return reducer.fit_transform(data)
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_dims": self.config.n_components,
+            "n_inliers": getattr(self.config, "n_inliers", 10),
+            "n_outliers": getattr(self.config, "n_outliers", 5),
+            #"metric": self.config.metric,
+        }
+        
+class PHATEReducer(DimensionReducer):
+    """PHATE reduction."""
+
+    def fit_transform(self, data: np.ndarray) -> np.ndarray:
+        from phate import PHATE
+        return PHATE(
+            n_components=self.config.n_components,
+            knn=self.config.n_neighbors, # Maps your neighbor standard to PHATE's knn
+            decay=getattr(self.config, "decay", 40),
+            t=getattr(self.config, "t", "auto"),
+            random_state=self.config.random_state,
+            n_jobs=-1, # Parallel processing helper for quick local execution
+        ).fit_transform(data)
+
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "n_components": self.config.n_components,
+            "knn": self.config.n_neighbors,
+            "decay": getattr(self.config, "decay", 40),
+            "t": getattr(self.config, "t", "auto"),
             "random_state": self.config.random_state,
         }
