@@ -196,6 +196,36 @@ Opt_Background = Annotated[
     ),
 ]
 
+# Evaluation
+Opt_Eval = Annotated[
+    bool,
+    typer.Option(
+        "--eval/--no-eval",
+        help="Run projection quality evaluation and save plots in {output}/eval/.",
+        rich_help_panel="Evaluation",
+    ),
+]
+Opt_Label = Annotated[
+    str,
+    typer.Option(
+        "--label",
+        help=(
+            "Annotation column used for supervised metrics during --eval. "
+            "Values are parsed up to the first '|' and stripped."
+        ),
+        rich_help_panel="Evaluation",
+    ),
+]
+Opt_Filter = Annotated[
+    int,
+    typer.Option(
+        "--filter",
+        min=0,
+        help="Minimum proteins per class in --label for --eval.",
+        rich_help_panel="Evaluation",
+    ),
+]
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -306,6 +336,10 @@ def prepare(
     bundled: Opt_Bundled = True,
     dump_cache: Opt_DumpCache = False,
     no_log: Opt_NoLog = False,
+    # Evaluation
+    eval: Opt_Eval = False,
+    label: Opt_Label = "protein_families",
+    filter: Opt_Filter = 0,
     # General
     verbose: Opt_Verbose = 0,
 ) -> None:
@@ -348,6 +382,7 @@ def prepare(
         embedders = [DEFAULT_EMBEDDER]
         logger.info(f"FASTA detected, defaulting to '{embedders[0]}'")
 
+    # --- Output and cache paths ---
 
     output_dir = output if output.suffix == "" else output.parent
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -365,6 +400,7 @@ def prepare(
     else:
         output_path = output_dir
 
+    # --- Dump cache ---
     if dump_cache:
         if not cache_dir:
             logger.error("No cache. Use --keep-tmp.")
@@ -378,6 +414,7 @@ def prepare(
             logger.error(f"No cache at {cache_path}.")
         return
 
+    # --- Build embedding sets ---
     from protspace.data.embedding.biocentral import EmbedConfig
     from protspace.data.loaders import EmbeddingSet, load_h5
     from protspace.data.loaders.h5 import EMBEDDING_EXTENSIONS
@@ -457,6 +494,7 @@ def prepare(
         if not embedding_sets:
             raise typer.BadParameter("No valid input data found.")
 
+        # --- Similarity ---
         if similarity:
             if fasta_for_similarity is None:
                 raise typer.BadParameter(
@@ -473,6 +511,7 @@ def prepare(
                 )
             )
 
+        # --- Parse annotations (repeatable option → flat list) ---
         raw = annotations if annotations else ["default"]
         annotation_list = []
         for item in raw:
@@ -481,6 +520,7 @@ def prepare(
                 if part:
                     annotation_list.append(part)
 
+        # --- Run pipeline ---
         from protspace.data.processors.pipeline import (
             PipelineConfig,
             ReducerParams,
@@ -514,6 +554,9 @@ def prepare(
             intermediate_dir=cache_dir,
             reducer_params=reducer_params,
             background_path=background,
+            eval_enabled=eval,
+            eval_label=label,
+            eval_filter=filter,
         )
 
         ReductionPipeline(config).run(embedding_sets)
@@ -660,6 +703,11 @@ def _write_run_log(
         "## Annotations",
         f"categories: {', '.join(pipeline_config.annotations or ['default'])}",
         f"scores: {scores}",
+        "",
+        "## Evaluation",
+        f"enabled: {pipeline_config.eval_enabled}",
+        f"label: {pipeline_config.eval_label}",
+        f"min_class_size: {pipeline_config.eval_filter}",
         "",
         "## Output",
         f"format: {'parquetbundle' if pipeline_config.bundled else 'parquet'}",
