@@ -1,0 +1,10 @@
+space	type	recall_mean	trust_mean	cont_mean	knn_acc_mean	silhouette	concordex
+PCA2 - Full	unsupervised	0.05	0.9857	0.9881			
+UMAP2 - Full	unsupervised	0.3982	0.9969	0.9978			
+t-SNE2 - Full	unsupervised	0.5789	0.9985	0.9984			
+Original (1024)	supervised				0.9282	0.1462	48.2694
+PCA50	supervised				0.8839	0.0438	41.1886
+PCA10	supervised				0.7345	-0.1207	28.0216
+PCA2	supervised				0.1317	-0.4865	3.8489
+UMAP2	supervised				0.8384	-0.3177	45.4973
+t-SNE2	supervised				0.8873	-0.1395	49.6719

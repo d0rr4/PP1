@@ -45,6 +45,20 @@ class BaseProcessor:
             "background",
             "background_matrix",
             "scale_variance",
+            "component_start",
+            "cpca_alpha",
+            "densmap",
+            "trimap_n_inliers",
+            "trimap_n_outliers",
+            "trimap_lr",
+            "trimap_n_iters",
+            "trimap_apply_pca",
+            "phate_knn",
+            "phate_decay",
+            "phate_n_landmark",
+            "phate_t",
+            "phate_gamma",
+            "phate_n_pca",
         }
         filtered_config = {
             k: v for k, v in self.config.items() if k in valid_config_keys

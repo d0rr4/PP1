@@ -1,0 +1,48 @@
+space	type	recall_mean	trust_mean	cont_mean	knn_acc_mean	silhouette	concordex
+rhoPCA2 - Full	unsupervised	0.1526	0.9256	0.9523			
+PCA2 - Full	unsupervised	0.2328	0.9537	0.9732			
+UMAP2 - Full	unsupervised	0.4579	0.9896	0.9931			
+t-SNE2 - Full	unsupervised	0.6548	0.9941	0.9944			
+rhoPCA50+UMAP2 - Full	unsupervised	0.4283	0.988	0.9905			
+rhoPCA50+t-SNE2 - Full	unsupervised	0.593	0.9922	0.9921			
+PCA50+UMAP2 - Full	unsupervised	0.4461	0.9889	0.9917			
+PCA50+t-SNE2 - Full	unsupervised	0.6206	0.9935	0.9936			
+PaCMAP2 - Full	unsupervised	0.3704	0.9854	0.9899			
+TriMAP2 - Full	unsupervised	0.4193	0.987	0.9898			
+densMAP2 - Full	unsupervised	0.4057	0.9835	0.9896			
+PHATE2 - Full	unsupervised	0.3076	0.9664	0.9782			
+irhoPCA2 - Full	unsupervised	0.1178	0.9214	0.9449			
+cPCA2 - Full	unsupervised	0.2278	0.9522	0.9726			
+CPCACPCAALPHA210(cpca_alpha=1.0) - Full	unsupervised	0.2122	0.945	0.9678			
+CPCACPCAALPHA250(cpca_alpha=5.0) - Full	unsupervised	0.2035	0.9422	0.9653			
+CPCACPCAALPHA2100(cpca_alpha=10.0) - Full	unsupervised	0.1952	0.9388	0.9625			
+CPCACPCAALPHA2500(cpca_alpha=50.0) - Full	unsupervised	0.1537	0.9237	0.9507			
+CPCACPCAALPHA210(cpca_alpha=-1.0) - Full	unsupervised	0.2122	0.9455	0.9688			
+CPCACPCAALPHA250(cpca_alpha=-5.0) - Full	unsupervised	0.1714	0.9326	0.9575			
+CPCACPCAALPHA2100(cpca_alpha=-10.0) - Full	unsupervised	0.1684	0.9317	0.9568			
+CPCACPCAALPHA2500(cpca_alpha=-50.0) - Full	unsupervised	0.1677	0.9313	0.9563			
+Original (1024)	supervised				0.9513	0.2298	13.8771
+PCA50	supervised				0.9492	0.1984	13.8032
+PCA10	supervised				0.9194	0.1439	13.1502
+rhoPCA2	supervised				0.515	-0.3797	6.0067
+PCA2	supervised				0.6927	-0.2326	8.9811
+UMAP2	supervised				0.9332	0.0948	13.8155
+t-SNE2	supervised				0.9481	-0.0262	13.947
+rhoPCA50+UMAP2	supervised				0.9314	0.0049	13.578
+rhoPCA50+t-SNE2	supervised				0.9407	-0.0871	13.7706
+PCA50+UMAP2	supervised				0.9232	0.0107	13.4821
+PCA50+t-SNE2	supervised				0.94	-0.0486	13.7861
+PaCMAP2	supervised				0.9176	0.015	13.5229
+TriMAP2	supervised				0.9169	-0.0291	13.1362
+densMAP2	supervised				0.9102	0.1206	13.2346
+PHATE2	supervised				0.8066	-0.1194	10.2391
+irhoPCA2	supervised				0.5426	-0.1142	6.7715
+cPCA2	supervised				0.6757	-0.2299	8.7576
+CPCACPCAALPHA210(cpca_alpha=1.0)	supervised				0.6278	-0.2944	7.9491
+CPCACPCAALPHA250(cpca_alpha=5.0)	supervised				0.6119	-0.3593	7.5784
+CPCACPCAALPHA2100(cpca_alpha=10.0)	supervised				0.5889	-0.3943	7.2358
+CPCACPCAALPHA2500(cpca_alpha=50.0)	supervised				0.4689	-0.4683	5.4855
+CPCACPCAALPHA210(cpca_alpha=-1.0)	supervised				0.6292	-0.2047	8.0061
+CPCACPCAALPHA250(cpca_alpha=-5.0)	supervised				0.5837	-0.1429	7.2963
+CPCACPCAALPHA2100(cpca_alpha=-10.0)	supervised				0.58	-0.1406	7.2217
+CPCACPCAALPHA2500(cpca_alpha=-50.0)	supervised				0.5794	-0.1399	7.1737
