@@ -136,7 +136,19 @@ class BiocentralPredictionRetriever(BaseAnnotationRetriever):
         )
 
         try:
-            with warnings.catch_warnings():
+            # Suppress stdout/stderr during the API call — the biocentral-api
+            # library may dump full request payloads (including protein sequences)
+            # and error contexts to the console on failure.
+            import io
+            import contextlib
+
+            stderr_buf = io.StringIO()
+            stdout_buf = io.StringIO()
+            with (
+                contextlib.redirect_stdout(stdout_buf),
+                contextlib.redirect_stderr(stderr_buf),
+                warnings.catch_warnings(),
+            ):
                 warnings.filterwarnings(
                     "ignore",
                     message=".*longer than the recommended.*",
@@ -146,6 +158,16 @@ class BiocentralPredictionRetriever(BaseAnnotationRetriever):
                     model_names=model_enums,
                     sequence_data=seq_data,
                 ).run_with_progress()
+
+            # If the library wrote error details to stderr, log a summary
+            stderr_output = stderr_buf.getvalue()
+            if stderr_output:
+                # Only log the first 500 chars to avoid flooding logs
+                truncated = stderr_output[:500]
+                if len(stderr_output) > 500:
+                    truncated += f"... ({len(stderr_output)} total chars)"
+                logger.debug("Biocentral API stderr: %s", truncated)
+
             return result
         except Exception as e:
             logger.warning(f"Biocentral prediction failed: {e}")

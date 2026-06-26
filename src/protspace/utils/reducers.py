@@ -292,6 +292,8 @@ class rhoPCAReducer(DimensionReducer):
         super().__init__(config)
 
     def fit_transform(self, data: np.ndarray, background_data: np.ndarray = None) -> np.ndarray:
+        # Use background_data if already passed by the pipeline (avoids double-load).
+        # Only fall back to CLI arg parsing when the reducer is called standalone.
         if background_data is None:
             bg_path_str = None
             if "--background" in sys.argv:
@@ -300,15 +302,15 @@ class rhoPCAReducer(DimensionReducer):
                     bg_path_str = sys.argv[idx + 1]
                 except IndexError:
                     pass
-            
+
             if bg_path_str:
                 bg_path = Path(bg_path_str)
                 if not bg_path.exists():
                     raise FileNotFoundError(
                         f"The background file specified in the command line does not exist: {bg_path.resolve()}"
                     )
-                
-                print(f"--> rhoPCA explicitly reading background matrix from CLI: {bg_path}")
+
+                logger.info("rhoPCA: reading background matrix from CLI: %s", bg_path)
                 with h5py.File(bg_path, "r") as f:
                     first_key = list(f.keys())[0]
                     if f[first_key].ndim == 1:
@@ -393,6 +395,8 @@ class irhoPCAReducer(DimensionReducer):
         self, data: np.ndarray, background_data: np.ndarray = None
     ) -> np.ndarray:
         # --- Load background (same pattern as rhoPCAReducer) ---
+        # Use background_data if already passed by the pipeline (avoids double-load).
+        # Only fall back to CLI arg parsing when the reducer is called standalone.
         if background_data is None:
             bg_path_str = None
             if "--background" in sys.argv:
@@ -494,6 +498,8 @@ class CPCAReducer(DimensionReducer):
         from contrastive import CPCA
 
         # --- Load background ---
+        # Use background_data if already passed by the pipeline (avoids double-load).
+        # Only fall back to CLI arg parsing when the reducer is called standalone.
         if background_data is None:
             bg_path_str = None
             if "--background" in sys.argv:

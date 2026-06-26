@@ -82,6 +82,11 @@ class BaseProcessor:
             data = data.astype(np.float32)
 
         reducer = reducer_cls(config)
+
+        # Extract background matrix from config (pre-loaded by pipeline) so
+        # contrastive reducers (rhoPCA, irhoPCA, cPCA) don't reload from disk.
+        background_matrix = getattr(config, "background_matrix", None)
+
         # Suppress noisy but harmless warnings from DR libraries:
         # - sklearn RuntimeWarning: overflow in randomized SVD matmul (results still correct)
         # - umap UserWarning: n_jobs overridden by random_state (informational)
@@ -95,7 +100,12 @@ class BaseProcessor:
                     "ignore", category=RuntimeWarning, module=r"sklearn"
                 )
                 warnings.filterwarnings("ignore", category=UserWarning, module=r"umap")
-                reduced_data = reducer.fit_transform(data)
+                if background_matrix is not None:
+                    reduced_data = reducer.fit_transform(
+                        data, background_data=background_matrix
+                    )
+                else:
+                    reduced_data = reducer.fit_transform(data)
         finally:
             pacmap_logger.setLevel(prev_level)
 

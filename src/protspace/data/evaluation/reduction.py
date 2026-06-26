@@ -795,10 +795,7 @@ def _plot_summary_heatmaps(
         df_uns = df_uns[["space"] + uns_cols].set_index("space")
         df_uns.columns = [_UNSUPERVISED_COL_LABELS[c] for c in uns_cols]
         df_uns = df_uns.apply(pd.to_numeric, errors="coerce")
-        subtitle = (
-            f"Means computed over {k_range_str}{sample_note} · "
-            f"Colour normalised column-wise"
-        )
+        subtitle = f"Means computed over {k_range_str}"
         _render_heatmap(
             data=df_uns,
             title=f"Unsupervised DR Evaluation  ·  {label_column}",
@@ -814,10 +811,7 @@ def _plot_summary_heatmaps(
         df_sup = df_sup[["space"] + sup_cols].set_index("space")
         df_sup.columns = [_SUPERVISED_COL_LABELS[c] for c in sup_cols]
         df_sup = df_sup.apply(pd.to_numeric, errors="coerce")
-        subtitle = (
-            f"kNN Accuracy mean over {k_range_str}{sample_note} · "
-            f"Colour normalised column-wise"
-        )
+        subtitle = f"kNN Accuracy mean over {k_range_str}"
         _render_heatmap(
             data=df_sup,
             title=f"Supervised DR Evaluation  ·  {label_column}",
@@ -842,8 +836,8 @@ def _render_heatmap(
     * Crisp white grid lines separate cells.
     * Annotation text is black on light cells and white on dark cells for
       maximum contrast (WCAG AA).
-    * A compact horizontal colour bar sits below the axes with a label that
-      clarifies the normalisation.
+    * A compact vertical colour bar sits to the right of the axes with a label
+      that clarifies the normalisation.
     * Typography uses a narrow sans-serif stack so long row/column names fit
       comfortably.
     * The figure background is white (#FFFFFF) with a subtle outer border.
@@ -857,9 +851,9 @@ def _render_heatmap(
     cell_w = 2.0          # inches per column
     cell_h = 0.55         # inches per row
     left_margin = 2.6     # room for row labels
-    right_margin = 0.35
+    right_margin = 1.05   # room for vertical colour bar + its labels
     top_margin = 1.05     # room for title + subtitle
-    bottom_margin = 1.10  # room for column labels + colour bar
+    bottom_margin = 0.90  # room for column labels
 
     fig_w = left_margin + n_cols * cell_w + right_margin
     fig_h = top_margin + n_rows * cell_h + bottom_margin
@@ -868,9 +862,6 @@ def _render_heatmap(
 
     fig = plt.figure(figsize=(fig_w, fig_h), facecolor="white")
 
-    # Axes: leave space at bottom for the colour bar.
-    cbar_height_frac = 0.06
-    cbar_pad_frac = 0.08
     ax_bottom = (bottom_margin) / fig_h
     ax_height = (n_rows * cell_h) / fig_h
     ax_left = left_margin / fig_w
@@ -897,7 +888,7 @@ def _render_heatmap(
                 r, g, b, _ = face_color
                 luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
                 text_color = "white" if luminance < 0.45 else "#1a1a1a"
-                cell_text = f"{raw_val:.4f}"
+                cell_text = f"{raw_val:.2f}"
 
             rect = plt.Rectangle(
                 (col_idx, n_rows - row_idx - 1),
@@ -913,7 +904,7 @@ def _render_heatmap(
                 cell_text,
                 ha="center",
                 va="center",
-                fontsize=9.5,
+                fontsize=13.5,
                 fontweight="bold",
                 color=text_color,
                 fontfamily="DejaVu Sans",
@@ -926,14 +917,14 @@ def _render_heatmap(
     ax.set_yticks(np.arange(n_rows) + 0.5)
     ax.set_xticklabels(
         data.columns,
-        fontsize=9.5,
+        fontsize=13.5,
         fontfamily="DejaVu Sans",
         ha="center",
         va="top",
     )
     ax.set_yticklabels(
         data.index[::-1],
-        fontsize=9.5,
+        fontsize=13.5,
         fontfamily="DejaVu Sans",
         ha="right",
         va="center",
@@ -950,7 +941,7 @@ def _render_heatmap(
         title,
         ha="center",
         va="bottom",
-        fontsize=14,
+        fontsize=18,
         fontweight="normal",
         fontfamily="DejaVu Sans",
         color="#111111",
@@ -961,32 +952,27 @@ def _render_heatmap(
         subtitle,
         ha="center",
         va="bottom",
-        fontsize=9,
+        fontsize=13,
         fontstyle="italic",
         fontfamily="DejaVu Sans",
         color="#555555",
     )
 
-    # ---- Colour bar ----
+    # ---- Colour bar (vertical, right side) ----
+    cbar_gap_in = 0.18     # gap between ax right edge and colourbar left, in inches
+    cbar_w_in   = 0.20     # colourbar width (thin), in inches
+    cbar_left   = (left_margin + n_cols * cell_w + cbar_gap_in) / fig_w
     cbar_ax = fig.add_axes(
-        [
-            ax_left,
-            ax_bottom - cbar_pad_frac - cbar_height_frac,
-            ax_width,
-            cbar_height_frac,
-        ]
+        [cbar_left, ax_bottom, cbar_w_in / fig_w, ax_height]
     )
     sm = ScalarMappable(cmap=cm, norm=norm)
     sm.set_array([])
-    cbar = fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
+    cbar = fig.colorbar(sm, cax=cbar_ax, orientation="vertical")
     cbar.set_label(
-        "Column-normalised score  (0 = worst, 1 = best)",
-        fontsize=9,
-        fontfamily="DejaVu Sans",
-        color="#444444",
-        labelpad=4,
+        "Column-normalised score\n(0 = worst, 1 = best)",
+        fontsize=15,
     )
-    cbar.ax.tick_params(labelsize=9, colors="#444444", length=2)
+    cbar.ax.tick_params(labelsize=15, colors="#444444", length=2)
     cbar.outline.set_visible(False)
 
     # ---- Save ----
