@@ -109,7 +109,9 @@ class PipelineConfig:
     intermediate_dir: Path | None = None
     reducer_params: ReducerParams = field(default_factory=ReducerParams)
     eval_enabled: bool = False
-    eval_label: str = "protein_families"
+    eval_labels: list[str] = field(
+        default_factory=lambda: ["protein_families"]
+    )
     eval_filter: int = 0
 
 
@@ -331,7 +333,7 @@ class ReductionPipeline:
                 metadata=metadata,
                 output_path=self.config.output_path,
                 bundled=self.config.bundled,
-                label_column=self.config.eval_label,
+                label_columns=self.config.eval_labels,
                 min_class_size=self.config.eval_filter,
             )
 

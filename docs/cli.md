@@ -131,8 +131,8 @@ This produces three projections: `ProtT5 — PCA 2`, `ProtT5 — UMAP 2 (n=15)`,
 | Flag | Description | Default |
 | ---- | ----------- | ------- |
 | `--eval / --no-eval` | Run evaluation after bundling. Writes plots and `summary.tsv` to `{output}/eval/<embedding_name>/`. | off |
-| `--label` | Annotation column used for supervised metrics. Label strings are parsed to the first `|` and stripped (e.g. `Kinase\\|ISS` -> `Kinase`). | `protein_families` |
-| `--filter` | Minimum proteins required per class in `--label`; rarer classes are excluded from evaluation. | `0` |
+| `--label` | Repeatable `[categorical|continuous]:COLUMN` specification. Untyped columns are categorical. | `protein_families` |
+| `--filter` | Minimum proteins required per categorical class; rarer classes are excluded. | `0` |
 
 #### Output
 
@@ -151,14 +151,15 @@ When `--eval` is enabled, protspace evaluates each embedding set separately afte
 - Input to evaluation per embedding set:
   - Original high-dimensional embedding matrix
   - All reduced projections produced from that embedding set
-  - Labels from the chosen annotation column (`--label`)
-- Label normalization:
+  - Labels from every selected annotation column (`--label` may be repeated)
+- Categorical label normalization:
   - Values are split at the first `|` and trimmed
   - Empty labels are dropped
   - `--filter` removes classes with fewer than N proteins
 - Metrics:
-  - Unsupervised: kNN recall, trustworthiness, continuity (vs. full space and PCA ground-truth space)
-  - Supervised: kNN accuracy and silhouette score
+  - Unsupervised: kNN recall, trustworthiness, and continuity, computed once without label filtering
+  - Categorical: kNN accuracy, silhouette score, and CONCORDEX
+  - Continuous: five-fold cross-validated linear-regression R2 and distance correlation
 
 Each evaluated embedding gets:
 
@@ -168,6 +169,13 @@ Each evaluated embedding gets:
 - `continuity.png`
 - `knn_accuracy.png`
 - `silhouette.png`
+- `concordex.png`
+- `linear_r2.png` and `distance_correlation.png` for continuous labels
+
+With multiple labels, the unsupervised files remain at
+`eval/<embedding_name>/` and each label's supervised files are written below
+`eval/<embedding_name>/<label>/`. All metrics use the same deterministic
+2,000-protein sample cap.
 
 ## `protspace embed`
 

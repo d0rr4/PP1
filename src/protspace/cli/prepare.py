@@ -206,12 +206,12 @@ Opt_Eval = Annotated[
     ),
 ]
 Opt_Label = Annotated[
-    str,
+    list[str] | None,
     typer.Option(
         "--label",
         help=(
-            "Annotation column used for supervised metrics during --eval. "
-            "Values are parsed up to the first '|' and stripped."
+            "Repeatable supervised label as [categorical|continuous]:COLUMN. "
+            "An untyped COLUMN is categorical."
         ),
         rich_help_panel="Evaluation",
     ),
@@ -338,7 +338,7 @@ def prepare(
     no_log: Opt_NoLog = False,
     # Evaluation
     eval: Opt_Eval = False,
-    label: Opt_Label = "protein_families",
+    label: Opt_Label = None,
     filter: Opt_Filter = 0,
     # General
     verbose: Opt_Verbose = 0,
@@ -555,7 +555,7 @@ def prepare(
             reducer_params=reducer_params,
             background_path=background,
             eval_enabled=eval,
-            eval_label=label,
+            eval_labels=label or ["protein_families"],
             eval_filter=filter,
         )
 
@@ -706,7 +706,7 @@ def _write_run_log(
         "",
         "## Evaluation",
         f"enabled: {pipeline_config.eval_enabled}",
-        f"label: {pipeline_config.eval_label}",
+        f"labels: {', '.join(pipeline_config.eval_labels)}",
         f"min_class_size: {pipeline_config.eval_filter}",
         "",
         "## Output",

@@ -5,19 +5,21 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
-from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 from scipy.spatial.distance import pdist, squareform
 from sklearn.decomposition import PCA
-from sklearn.metrics import silhouette_score
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, silhouette_score
+from sklearn.model_selection import KFold, cross_val_predict
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import LabelEncoder, normalize
 
@@ -46,11 +48,43 @@ PROJECTION_COLORS = (
 BASE_COLORS = {"Full": "#000000", "PCA": "#666666", "PCA10": "#999999"}
 LINESTYLES_GT = {"Full": "-"}
 
-# Hard cap on the number of points used for ALL metrics.  When the labelled
-# set exceeds this size a single stratified random subsample is drawn once
-# and every subsequent computation (neighbour graphs, silhouette, CONCORDEX,
-# kNN accuracy, line plots, heatmaps) operates on that fixed subset.
+# Hard cap shared by all metrics. Distance correlation has O(n^2) cost, so a
+# single cap keeps every reported sample size comparable and memory bounded.
 _MAX_DIST_SAMPLES = 10_000
+
+
+@dataclass(frozen=True)
+class EvaluationLabel:
+    """A metadata column and the supervised metric family applied to it."""
+
+    kind: str
+    column: str
+
+
+def _parse_label_specs(raw_labels: Iterable[str]) -> list[EvaluationLabel]:
+    """Parse ``[categorical|continuous]:column`` label specifications."""
+    specs: list[EvaluationLabel] = []
+    seen: set[str] = set()
+    for raw in raw_labels:
+        value = raw.strip()
+        if not value:
+            raise ValueError("--label must not be empty.")
+        prefix, separator, column = value.partition(":")
+        if separator and prefix.lower() in {"categorical", "continuous"}:
+            kind = prefix.lower()
+            column = column.strip()
+        else:
+            kind = "categorical"
+            column = value
+        if not column:
+            raise ValueError(f"Invalid --label specification '{raw}': missing column.")
+        if column in seen:
+            raise ValueError(f"Label column '{column}' was specified more than once.")
+        seen.add(column)
+        specs.append(EvaluationLabel(kind=kind, column=column))
+    if not specs:
+        specs.append(EvaluationLabel("categorical", "protein_families"))
+    return specs
 
 
 def run_reduction_evaluation(
@@ -60,38 +94,36 @@ def run_reduction_evaluation(
     metadata: pd.DataFrame,
     output_path: Path,
     bundled: bool,
-    label_column: str,
     min_class_size: int,
+    label_columns: list[str] | None = None,
+    label_column: str | None = None,
 ) -> None:
-    """Run DR evaluation and write per-embedding plots/summary files.
-
-    Output layout:
-        {output}/eval/{embedding_name}/
-            summary.tsv
-            recall.png
-            trustworthiness.png
-            continuity.png
-            knn_accuracy.png
-            silhouette.png
-            concordex.png
-            heatmap_unsupervised.png
-            heatmap_supervised.png
-    """
+    """Run label-independent and per-label DR evaluation."""
     if min_class_size < 0:
         raise ValueError("--filter must be >= 0.")
     if "identifier" not in metadata.columns:
         raise ValueError("Expected metadata to contain an 'identifier' column.")
-    if label_column not in metadata.columns:
+    raw_labels = label_columns
+    if raw_labels is None:
+        raw_labels = [label_column or "protein_families"]
+    label_specs = _parse_label_specs(raw_labels)
+    missing = [spec.column for spec in label_specs if spec.column not in metadata.columns]
+    if missing:
         available = ", ".join(sorted(c for c in metadata.columns if c != "identifier"))
+        if len(missing) == 1:
+            raise ValueError(
+                f"Label column '{missing[0]}' was not found in annotations. "
+                "Available columns: {}.".format(available or "(none)")
+            )
         raise ValueError(
-            f"Label column '{label_column}' was not found in annotations. "
+            f"Label column(s) {', '.join(repr(column) for column in missing)} "
+            "were not found in annotations. "
             f"Available columns: {available or '(none)'}."
         )
 
     eval_root = _resolve_output_dir(output_path, bundled) / "eval"
     eval_root.mkdir(parents=True, exist_ok=True)
 
-    labels_lookup = _prepare_labels_lookup(metadata, label_column)
     reductions_by_embedding = _group_reductions_by_embedding(reductions)
 
     evaluated = 0
@@ -112,15 +144,60 @@ def run_reduction_evaluation(
             )
             continue
 
-        out_dir = eval_root / _safe_dir_name(emb_set.name)
+        embedding_dir = eval_root / _safe_dir_name(emb_set.name)
         try:
-            _evaluate_single_embedding(
-                emb_set=emb_set,
-                reductions=emb_reductions,
-                labels_lookup=labels_lookup,
-                label_column=label_column,
-                min_class_size=min_class_size,
-                out_dir=out_dir,
+            unsupervised, k_values, n_full, n_eval = _evaluate_unsupervised(
+                emb_set=emb_set, reductions=emb_reductions, out_dir=embedding_dir
+            )
+            single_label_rows: list[dict[str, Any]] | None = None
+            for spec in label_specs:
+                label_dir = (
+                    embedding_dir
+                    if len(label_specs) == 1
+                    else embedding_dir / _safe_dir_name(spec.column)
+                )
+                try:
+                    rows = _evaluate_supervised_label(
+                        emb_set=emb_set,
+                        reductions=emb_reductions,
+                        metadata=metadata,
+                        spec=spec,
+                        min_class_size=min_class_size,
+                        out_dir=label_dir,
+                    )
+                except ValueError as exc:
+                    logger.warning(
+                        "Skipping label '%s' for '%s': %s",
+                        spec.column,
+                        emb_set.name,
+                        exc,
+                    )
+                    continue
+                if len(label_specs) == 1:
+                    single_label_rows = rows
+                else:
+                    _write_summary(out_dir=label_dir, supervised=rows)
+                    _plot_summary_heatmaps(
+                        out_dir=label_dir,
+                        k_values=[],
+                        label_column=spec.column,
+                        supervised_kind=spec.kind,
+                        n_full=0,
+                        n_eval=0,
+                    )
+
+            _write_summary(
+                out_dir=embedding_dir,
+                unsupervised=unsupervised,
+                supervised=single_label_rows,
+            )
+            _plot_summary_heatmaps(
+                out_dir=embedding_dir,
+                k_values=k_values,
+                label_column=label_specs[0].column if len(label_specs) == 1 else None,
+                supervised_kind=label_specs[0].kind if len(label_specs) == 1 else None,
+                n_full=n_full,
+                n_eval=n_eval,
             )
             evaluated += 1
         except ValueError as exc:
@@ -156,6 +233,13 @@ def _prepare_labels_lookup(metadata: pd.DataFrame, label_column: str) -> pd.Seri
     labels[label_column] = labels[label_column].replace("", pd.NA)
     labels = labels.dropna(subset=[label_column]).drop_duplicates("identifier")
     return labels.set_index("identifier")[label_column].astype(str)
+
+
+def _prepare_continuous_lookup(metadata: pd.DataFrame, column: str) -> pd.Series:
+    values = metadata[["identifier", column]].copy()
+    values[column] = pd.to_numeric(values[column], errors="coerce")
+    values = values.dropna(subset=[column]).drop_duplicates("identifier")
+    return values.set_index("identifier")[column].astype(float)
 
 
 def _group_reductions_by_embedding(
@@ -208,7 +292,7 @@ def _stratified_subsample(
         quota[quota.argmax()] -= 1
 
     chosen: list[int] = []
-    for cls, q in zip(classes, quota):
+    for cls, q in zip(classes, quota, strict=True):
         cls_positions = np.where(labels_int == cls)[0]
         take = min(q, len(cls_positions))
         chosen.extend(rng.choice(cls_positions, size=take, replace=False).tolist())
@@ -219,7 +303,147 @@ def _stratified_subsample(
     return sub_indices, sub_labels
 
 
-def _evaluate_single_embedding(
+def _random_subsample_indices(n_samples: int, max_samples: int) -> list[int]:
+    if n_samples <= max_samples:
+        return list(range(n_samples))
+    rng = np.random.default_rng(42)
+    return sorted(rng.choice(n_samples, size=max_samples, replace=False).tolist())
+
+
+def _build_projection_entries(
+    reductions: list[dict[str, Any]], embedding_name: str
+) -> tuple[list[tuple[str, dict[str, Any]]], dict[str, str]]:
+    entries: list[tuple[str, dict[str, Any]]] = []
+    seen: set[str] = set()
+    for reduction in reductions:
+        label = _projection_label(reduction["name"], embedding_name)
+        if label in seen:
+            suffix = 2
+            while f"{label} [{suffix}]" in seen:
+                suffix += 1
+            label = f"{label} [{suffix}]"
+        seen.add(label)
+        entries.append((label, reduction))
+    colors = {
+        label: PROJECTION_COLORS[i % len(PROJECTION_COLORS)]
+        for i, (label, _) in enumerate(entries)
+    }
+    return entries, colors
+
+
+def _evaluate_unsupervised(
+    *,
+    emb_set: EmbeddingSet,
+    reductions: list[dict[str, Any]],
+    out_dir: Path,
+) -> tuple[dict[str, dict[str, Any]], list[int], int, int]:
+    """Evaluate structure preservation once, independently of labels."""
+    n_full = len(emb_set.headers)
+    if n_full < 3:
+        raise ValueError("not enough proteins for evaluation (need at least 3)")
+    indices = _random_subsample_indices(n_full, _MAX_DIST_SAMPLES)
+    n_eval = len(indices)
+    embeddings = emb_set.data[indices].astype(np.float32, copy=False)
+    k_stored = min(DEFAULT_K_STORED, n_eval - 1)
+    k_values = _valid_k_values(n_eval, k_stored)
+    if not k_values:
+        raise ValueError("no valid k values for trustworthiness/continuity")
+
+    full_neighbors = _neighbors(normalize(embeddings, norm="l2"), k_stored, "cosine")
+    projection_entries, projection_colors = _build_projection_entries(
+        reductions, emb_set.name
+    )
+    unsupervised: dict[str, dict[str, Any]] = {}
+    for proj_label, reduction in projection_entries:
+        dims = 3 if reduction["dimensions"] == 3 else 2
+        coords = reduction["data"][indices, :dims].astype(np.float32, copy=False)
+        proj_neighbors = _neighbors(coords, k_stored, "euclidean")
+        recalls: list[float] = []
+        trusts: list[float] = []
+        continuities: list[float] = []
+        for k in k_values:
+            recalls.append(_knn_recall_at_k(full_neighbors, proj_neighbors, k))
+            trusts.append(
+                _trustworthiness_at_k(full_neighbors, proj_neighbors, k, n_eval)
+            )
+            continuities.append(
+                _continuity_at_k(proj_neighbors, full_neighbors, k, n_eval)
+            )
+        unsupervised[f"{proj_label} - Full"] = {
+            "recall": recalls,
+            "trust": trusts,
+            "cont": continuities,
+            "projection_label": proj_label,
+            "gt_label": "Full",
+        }
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    _plot_unsupervised_lines(
+        out_dir=out_dir,
+        k_values=k_values,
+        unsupervised=unsupervised,
+        projection_colors=projection_colors,
+    )
+    return unsupervised, k_values, n_full, n_eval
+
+
+def _supervised_spaces(
+    emb_set: EmbeddingSet,
+    reductions: list[dict[str, Any]],
+    indices: list[int],
+) -> tuple[dict[str, np.ndarray], dict[str, str], str, str, str]:
+    embeddings = emb_set.data[indices].astype(np.float32, copy=False)
+    n_eval = len(indices)
+    pca_components = min(DEFAULT_PCA_COMPONENTS, embeddings.shape[1], n_eval - 1)
+    if pca_components < 1:
+        raise ValueError("cannot compute PCA ground truth for this embedding set")
+    emb_pca = PCA(
+        n_components=pca_components, svd_solver="auto", random_state=42
+    ).fit_transform(embeddings)
+    pca10_components = min(10, embeddings.shape[1], n_eval - 1)
+    emb_pca10 = PCA(
+        n_components=pca10_components, svd_solver="auto", random_state=42
+    ).fit_transform(embeddings)
+
+    full_name = f"Original ({embeddings.shape[1]})"
+    pca_name = f"PCA{pca_components}"
+    pca10_name = f"PCA{pca10_components}"
+    spaces = {full_name: embeddings, pca_name: emb_pca, pca10_name: emb_pca10}
+    entries, colors = _build_projection_entries(reductions, emb_set.name)
+    for label, reduction in entries:
+        dims = 3 if reduction["dimensions"] == 3 else 2
+        spaces[label] = reduction["data"][indices, :dims].astype(np.float32, copy=False)
+    return spaces, colors, full_name, pca_name, pca10_name
+
+
+def _evaluate_supervised_label(
+    *,
+    emb_set: EmbeddingSet,
+    reductions: list[dict[str, Any]],
+    metadata: pd.DataFrame,
+    spec: EvaluationLabel,
+    min_class_size: int,
+    out_dir: Path,
+) -> list[dict[str, Any]]:
+    if spec.kind == "continuous":
+        return _evaluate_continuous_label(
+            emb_set=emb_set,
+            reductions=reductions,
+            values_lookup=_prepare_continuous_lookup(metadata, spec.column),
+            label_column=spec.column,
+            out_dir=out_dir,
+        )
+    return _evaluate_categorical_label(
+        emb_set=emb_set,
+        reductions=reductions,
+        labels_lookup=_prepare_labels_lookup(metadata, spec.column),
+        label_column=spec.column,
+        min_class_size=min_class_size,
+        out_dir=out_dir,
+    )
+
+
+def _evaluate_categorical_label(
     *,
     emb_set: EmbeddingSet,
     reductions: list[dict[str, Any]],
@@ -227,234 +451,68 @@ def _evaluate_single_embedding(
     label_column: str,
     min_class_size: int,
     out_dir: Path,
-) -> None:
+) -> list[dict[str, Any]]:
     id_to_idx = {identifier: i for i, identifier in enumerate(emb_set.headers)}
     shared_ids = [
         identifier for identifier in emb_set.headers if identifier in labels_lookup.index
     ]
-
     labels = labels_lookup.loc[shared_ids]
-    total_proteins = len(emb_set.headers)
-    proteins_with_labels = len(labels)
-    unique_categories = labels.nunique()
-    proteins_with_na = total_proteins - proteins_with_labels
-
     class_counts = labels.value_counts()
-    if min_class_size > 0:
-        rare_class_counts = class_counts[class_counts < min_class_size]
-        valid_classes = class_counts[class_counts >= min_class_size].index
-        labels = labels[labels.isin(valid_classes)]
-    else:
-        rare_class_counts = class_counts.iloc[0:0]
-
-    proteins_below_filter = int(rare_class_counts.sum())
-    categories_below_filter = len(rare_class_counts)
-    remaining_proteins = len(labels)
-
+    rare = (
+        class_counts[class_counts < min_class_size]
+        if min_class_size
+        else class_counts.iloc[0:0]
+    )
+    if min_class_size:
+        valid = class_counts[class_counts >= min_class_size].index
+        labels = labels[labels.isin(valid)]
     _print_label_summary(
         embedding_name=emb_set.name,
         label_column=label_column,
         min_class_size=min_class_size,
-        total_proteins=total_proteins,
-        unique_categories=unique_categories,
-        proteins_with_na=proteins_with_na,
-        proteins_below_filter=proteins_below_filter,
-        categories_below_filter=categories_below_filter,
-        remaining_proteins=remaining_proteins,
+        total_proteins=len(emb_set.headers),
+        unique_categories=class_counts.size,
+        proteins_with_na=len(emb_set.headers) - len(shared_ids),
+        proteins_below_filter=int(rare.sum()),
+        categories_below_filter=len(rare),
+        remaining_proteins=len(labels),
     )
-
-    if not shared_ids:
-        raise ValueError("no overlap between embeddings and labeled proteins")
-
-    active_ids = labels.index.tolist()
-    if len(active_ids) < 3:
-        raise ValueError(
-            "not enough proteins after label filtering (need at least 3 proteins)"
-        )
-
-    encoder = LabelEncoder()
-    all_labels_int = encoder.fit_transform(labels.values)
-
-    # ------------------------------------------------------------------
-    # Universal subsampling — enforced here, once, before any computation.
-    # Every metric, neighbour graph, and plot operates on this fixed subset.
-    # ------------------------------------------------------------------
-    rng = np.random.default_rng(42)
-    n_full = len(active_ids)
-    all_indices = [id_to_idx[identifier] for identifier in active_ids]
-
-    if n_full > _MAX_DIST_SAMPLES:
-        logger.info(
-            "Subsampling %d → %d points for '%s' (stratified, seed=42).",
-            n_full,
-            _MAX_DIST_SAMPLES,
-            emb_set.name,
-        )
-        indices, labels_int = _stratified_subsample(
-            all_indices, all_labels_int, _MAX_DIST_SAMPLES, rng
-        )
-        n_eval = len(indices)
-    else:
-        indices, labels_int = all_indices, all_labels_int
-        n_eval = n_full
-
-    logger.info(
-        "Evaluation '%s': labels=%d, dropped_unlabeled=%d, dropped_by_filter=%d, "
-        "eval_n=%d",
-        emb_set.name,
-        proteins_with_labels,
-        proteins_with_na,
-        proteins_below_filter,
-        n_eval,
+    if len(labels) < 3:
+        raise ValueError(f"not enough proteins for label '{label_column}'")
+    labels_int_all = LabelEncoder().fit_transform(labels.to_numpy())
+    all_indices = [id_to_idx[identifier] for identifier in labels.index]
+    indices, labels_int = _stratified_subsample(
+        all_indices,
+        labels_int_all,
+        _MAX_DIST_SAMPLES,
+        np.random.default_rng(42),
     )
-
-    embeddings = emb_set.data[indices].astype(np.float32, copy=False)
-
+    n_eval = len(indices)
     k_stored = min(DEFAULT_K_STORED, n_eval - 1)
-    if k_stored < 1:
-        raise ValueError("not enough proteins to compute nearest-neighbor metrics")
-
     k_values = _valid_k_values(n_eval, k_stored)
-    if not k_values:
-        raise ValueError("no valid k values for trustworthiness/continuity")
-
-    full_neighbors = _neighbors(normalize(embeddings, norm="l2"), k_stored, "cosine")
-    pca_components = min(
-        DEFAULT_PCA_COMPONENTS,
-        embeddings.shape[1],
-        n_eval - 1,
+    spaces, colors, full_name, pca_name, pca10_name = _supervised_spaces(
+        emb_set, reductions, indices
     )
-    if pca_components < 1:
-        raise ValueError("cannot compute PCA ground truth for this embedding set")
 
-    pca = PCA(n_components=pca_components, svd_solver="auto", random_state=42)
-    emb_pca = pca.fit_transform(embeddings)
-    pca_neighbors = _neighbors(normalize(emb_pca, norm="l2"), k_stored, "cosine")
-
-    pca10_components = min(10, embeddings.shape[1], n_eval - 1)
-    if pca10_components >= 1:
-        pca10 = PCA(n_components=pca10_components, svd_solver="auto", random_state=42)
-        emb_pca10 = pca10.fit_transform(embeddings)
-        pca10_neighbors = _neighbors(normalize(emb_pca10, norm="l2"), k_stored, "cosine")
-
-    full_name = f"Original ({embeddings.shape[1]})"
-    pca_name = f"PCA{pca_components}"
-    pca10_name = f"PCA{pca10_components}" if pca10_components >= 1 else ""
-
-    # ------------------------------------------------------------------
-    # Per-space scalar metrics
-    # ------------------------------------------------------------------
-    unsupervised: dict[str, dict[str, Any]] = {}
-    knn_accuracy: dict[str, list[float]] = {}
-    silhouette: dict[str, float] = {}
+    accuracies: dict[str, list[float]] = {}
+    silhouettes: dict[str, float] = {}
     concordex: dict[str, float] = {}
-
-    knn_accuracy[full_name] = [
-        _knn_accuracy_at_k(full_neighbors, labels_int, k) for k in k_values
-    ]
-    knn_accuracy[pca_name] = [
-        _knn_accuracy_at_k(pca_neighbors, labels_int, k) for k in k_values
-    ]
-    if pca10_components >= 1:
-        knn_accuracy[pca10_name] = [
-            _knn_accuracy_at_k(pca10_neighbors, labels_int, k) for k in k_values
+    for space, values in spaces.items():
+        metric = "cosine" if space == full_name else "euclidean"
+        neighbor_values = normalize(values, norm="l2") if metric == "cosine" else values
+        neighbors = _neighbors(neighbor_values, k_stored, metric)
+        accuracies[space] = [
+            _knn_accuracy_at_k(neighbors, labels_int, k) for k in k_values
         ]
-
-    silhouette[full_name] = _safe_silhouette(embeddings, labels_int, metric="cosine")
-    silhouette[pca_name] = _safe_silhouette(emb_pca, labels_int, metric="euclidean")
-    if pca10_components >= 1:
-        silhouette[pca10_name] = _safe_silhouette(emb_pca10, labels_int, metric="euclidean")
-
-    concordex[full_name] = _concordex_score(full_neighbors, labels_int, k=k_values[-1])
-    concordex[pca_name] = _concordex_score(pca_neighbors, labels_int, k=k_values[-1])
-    if pca10_components >= 1:
-        concordex[pca10_name] = _concordex_score(pca10_neighbors, labels_int, k=k_values[-1])
-
-    # ------------------------------------------------------------------
-    # Build projection entries
-    # ------------------------------------------------------------------
-    projection_entries: list[tuple[str, dict[str, Any]]] = []
-    seen_labels: set[str] = set()
-    for reduction in reductions:
-        label = _projection_label(reduction["name"], emb_set.name)
-        if label in seen_labels:
-            suffix = 2
-            while f"{label} [{suffix}]" in seen_labels:
-                suffix += 1
-            label = f"{label} [{suffix}]"
-        seen_labels.add(label)
-        projection_entries.append((label, reduction))
-
-    projection_colors = {
-        label: PROJECTION_COLORS[i % len(PROJECTION_COLORS)]
-        for i, (label, _) in enumerate(projection_entries)
-    }
-
-    # ------------------------------------------------------------------
-    # Per-projection metrics  (indices already subsampled above)
-    # ------------------------------------------------------------------
-    for proj_label, reduction in projection_entries:
-        coords = reduction["data"][indices].astype(np.float32, copy=False)
-        dims = 3 if reduction["dimensions"] == 3 else 2
-        coords = coords[:, :dims]
-        proj_neighbors = _neighbors(coords, k_stored, "euclidean")
-
-        knn_accuracy[proj_label] = [
-            _knn_accuracy_at_k(proj_neighbors, labels_int, k) for k in k_values
-        ]
-        silhouette[proj_label] = _safe_silhouette(
-            coords,
-            labels_int,
-            metric="euclidean",
-        )
-        concordex[proj_label] = _concordex_score(
-            proj_neighbors, labels_int, k=k_values[-1]
-        )
-
-        for gt_label, gt_neighbors in (("Full", full_neighbors),):
-            line_label = f"{proj_label} - {gt_label}"
-            recalls: list[float] = []
-            trusts: list[float] = []
-            conts: list[float] = []
-            for k in k_values:
-                recalls.append(_knn_recall_at_k(gt_neighbors, proj_neighbors, k))
-                trusts.append(
-                    _trustworthiness_at_k(
-                        gt_neighbors, proj_neighbors, k, n_eval
-                    )
-                )
-                conts.append(
-                    _continuity_at_k(
-                        proj_neighbors, gt_neighbors, k, n_eval
-                    )
-                )
-            unsupervised[line_label] = {
-                "recall": recalls,
-                "trust": trusts,
-                "cont": conts,
-                "projection_label": proj_label,
-                "gt_label": gt_label,
-            }
+        silhouettes[space] = _safe_silhouette(values, labels_int, metric=metric)
+        concordex[space] = _concordex_score(neighbors, labels_int, k=k_values[-1])
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    _write_summary(
-        out_dir=out_dir,
-        unsupervised=unsupervised,
-        knn_accuracy=knn_accuracy,
-        silhouette=silhouette,
-        concordex=concordex,
-    )
-    _plot_unsupervised_lines(
-        out_dir=out_dir,
-        k_values=k_values,
-        unsupervised=unsupervised,
-        projection_colors=projection_colors,
-    )
     _plot_knn_accuracy(
         out_dir=out_dir,
         k_values=k_values,
-        knn_accuracy=knn_accuracy,
-        projection_colors=projection_colors,
+        knn_accuracy=accuracies,
+        projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
         pca10_name=pca10_name,
@@ -462,8 +520,8 @@ def _evaluate_single_embedding(
     )
     _plot_silhouette(
         out_dir=out_dir,
-        silhouette=silhouette,
-        projection_colors=projection_colors,
+        silhouette=silhouettes,
+        projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
         pca10_name=pca10_name,
@@ -472,19 +530,112 @@ def _evaluate_single_embedding(
     _plot_concordex(
         out_dir=out_dir,
         concordex=concordex,
-        projection_colors=projection_colors,
+        projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
         pca10_name=pca10_name,
         label_column=label_column,
     )
-    _plot_summary_heatmaps(
-        out_dir=out_dir,
-        k_values=k_values,
-        label_column=label_column,
-        n_full=n_full,
-        n_eval=n_eval,
+    return [
+        {
+            "space": space,
+            "type": "supervised_categorical",
+            "label": label_column,
+            "n_samples": n_eval,
+            "knn_acc_mean": round(float(np.mean(accuracies[space])), 4),
+            "silhouette": round(float(silhouettes[space]), 4),
+            "concordex": round(float(concordex[space]), 4),
+        }
+        for space in spaces
+    ]
+
+
+def _evaluate_continuous_label(
+    *,
+    emb_set: EmbeddingSet,
+    reductions: list[dict[str, Any]],
+    values_lookup: pd.Series,
+    label_column: str,
+    out_dir: Path,
+) -> list[dict[str, Any]]:
+    id_to_idx = {identifier: i for i, identifier in enumerate(emb_set.headers)}
+    active_ids = [
+        identifier for identifier in emb_set.headers if identifier in values_lookup.index
+    ]
+    if len(active_ids) < 3:
+        raise ValueError(f"not enough numeric values for label '{label_column}'")
+    all_indices = [id_to_idx[identifier] for identifier in active_ids]
+    chosen = _random_subsample_indices(len(all_indices), _MAX_DIST_SAMPLES)
+    indices = [all_indices[i] for i in chosen]
+    targets = values_lookup.loc[active_ids].to_numpy(dtype=float)[chosen]
+    if np.unique(targets).size < 2:
+        raise ValueError(f"continuous label '{label_column}' is constant")
+    spaces, colors, full_name, pca_name, pca10_name = _supervised_spaces(
+        emb_set, reductions, indices
     )
+    folds = KFold(n_splits=min(5, len(targets)), shuffle=True, random_state=42)
+    r2_scores: dict[str, float] = {}
+    distance_correlations: dict[str, float] = {}
+    for space, values in spaces.items():
+        predictions = cross_val_predict(LinearRegression(), values, targets, cv=folds)
+        r2_scores[space] = float(r2_score(targets, predictions))
+        distance_correlations[space] = _distance_correlation(values, targets)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    _plot_continuous_metrics(
+        out_dir=out_dir,
+        r2_scores=r2_scores,
+        distance_correlations=distance_correlations,
+        projection_colors=colors,
+        full_name=full_name,
+        pca_name=pca_name,
+        pca10_name=pca10_name,
+        label_column=label_column,
+    )
+    logger.info(
+        "Continuous evaluation '%s' / '%s': labels=%d, dropped=%d, eval_n=%d",
+        emb_set.name,
+        label_column,
+        len(active_ids),
+        len(emb_set.headers) - len(active_ids),
+        len(indices),
+    )
+    return [
+        {
+            "space": space,
+            "type": "supervised_continuous",
+            "label": label_column,
+            "n_samples": len(indices),
+            "linear_r2": round(r2_scores[space], 4),
+            "distance_correlation": round(distance_correlations[space], 4),
+        }
+        for space in spaces
+    ]
+
+
+def _distance_correlation(features: np.ndarray, target: np.ndarray) -> float:
+    """Return the biased sample distance correlation in [0, 1]."""
+    distances_x = squareform(pdist(features, metric="euclidean"))
+    distances_y = np.abs(target[:, None] - target[None, :])
+    centered_x = (
+        distances_x
+        - distances_x.mean(axis=0)[None, :]
+        - distances_x.mean(axis=1)[:, None]
+        + distances_x.mean()
+    )
+    centered_y = (
+        distances_y
+        - distances_y.mean(axis=0)[None, :]
+        - distances_y.mean(axis=1)[:, None]
+        + distances_y.mean()
+    )
+    covariance_sq = max(float(np.mean(centered_x * centered_y)), 0.0)
+    variance_x_sq = max(float(np.mean(centered_x * centered_x)), 0.0)
+    variance_y_sq = max(float(np.mean(centered_y * centered_y)), 0.0)
+    denominator = np.sqrt(variance_x_sq * variance_y_sq)
+    if denominator == 0:
+        return float("nan")
+    return float(np.clip(np.sqrt(covariance_sq / denominator), 0.0, 1.0))
 
 
 # ---------------------------------------------------------------------------
@@ -553,21 +704,25 @@ def _print_label_summary(
     remaining_proteins: int,
 ) -> None:
     print(
-        f"\nEvaluation summary "
-        f"(label: {label_column}, filter minimum: {min_class_size})"
+        f"\nEvaluation summary for {embedding_name} "
+        f"(label: {label_column}, filter: {min_class_size})"
     )
     print(
-        f"Total proteins:{total_proteins}  \nTotal unique categories  in '{label_column}' label: {unique_categories}"
+        "1. Total proteins and label categories: "
+        f"{total_proteins} total proteins; {unique_categories} unique categories"
     )
+    print(f"2. Proteins with NA label: {proteins_with_na} proteins")
+    if proteins_below_filter:
+        filter_summary = (
+            f"{proteins_below_filter} proteins are in "
+            f"{categories_below_filter} categories"
+        )
+    else:
+        filter_summary = "0 proteins removed"
+    print(f"3. Proteins removed by rare-class filter: {filter_summary}")
     print(
-        f"Proteins without a category in '{label_column}' label: {proteins_with_na}"
-    )
-    print(
-        f"Proteins removed by rare-class (<{min_class_size}) filter: {proteins_below_filter} "
-        f"\nRare-class categories (<{min_class_size}) removed: {categories_below_filter}"
-    )
-    print(
-        f"Final proteins considered for evaluation: {remaining_proteins}"
+        "4. Proteins considered for evaluation: "
+        f"{remaining_proteins} proteins remain"
     )
 
 
@@ -699,13 +854,11 @@ def _safe_silhouette(
 def _write_summary(
     *,
     out_dir: Path,
-    unsupervised: dict[str, dict[str, Any]],
-    knn_accuracy: dict[str, list[float]],
-    silhouette: dict[str, float],
-    concordex: dict[str, float],
+    unsupervised: dict[str, dict[str, Any]] | None = None,
+    supervised: list[dict[str, Any]] | None = None,
 ) -> None:
     rows: list[dict[str, Any]] = []
-    for space, metrics in unsupervised.items():
+    for space, metrics in (unsupervised or {}).items():
         rows.append(
             {
                 "space": space,
@@ -713,24 +866,9 @@ def _write_summary(
                 "recall_mean": round(float(np.mean(metrics["recall"])), 4),
                 "trust_mean": round(float(np.mean(metrics["trust"])), 4),
                 "cont_mean": round(float(np.mean(metrics["cont"])), 4),
-                "knn_acc_mean": "",
-                "silhouette": "",
-                "concordex": "",
             }
         )
-    for space, acc_values in knn_accuracy.items():
-        rows.append(
-            {
-                "space": space,
-                "type": "supervised",
-                "recall_mean": "",
-                "trust_mean": "",
-                "cont_mean": "",
-                "knn_acc_mean": round(float(np.mean(acc_values)), 4),
-                "silhouette": round(float(silhouette.get(space, float("nan"))), 4),
-                "concordex": round(float(concordex.get(space, float("nan"))), 4),
-            }
-        )
+    rows.extend(supervised or [])
 
     pd.DataFrame(rows).to_csv(out_dir / "summary.tsv", sep="\t", index=False)
 
@@ -745,29 +883,31 @@ _UNSUPERVISED_COL_LABELS: dict[str, str] = {
     "trust_mean": "Trustworthiness\n(mean)",
     "cont_mean": "Continuity\n(mean)",
 }
-_SUPERVISED_COL_LABELS: dict[str, str] = {
+_CATEGORICAL_COL_LABELS: dict[str, str] = {
     "knn_acc_mean": "kNN Accuracy\n(mean)",
     "silhouette": "Silhouette\nScore",
     "concordex": "CONCORDEX",
+}
+_CONTINUOUS_COL_LABELS: dict[str, str] = {
+    "linear_r2": "Linear Regression\nCV R2",
+    "distance_correlation": "Distance\nCorrelation",
 }
 
 
 def _plot_summary_heatmaps(
     *,
     out_dir: Path,
-    k_values: list[int],
-    label_column: str,
-    n_full: int,
-    n_eval: int,
+    k_values: list[int] | None = None,
+    label_column: str | None = None,
+    supervised_kind: str | None = None,
+    n_full: int | None = None,
+    n_eval: int | None = None,
 ) -> None:
-    """Read the just-written summary TSV and produce two polished heatmaps.
+    """Read the summary TSV and produce available metric heatmaps.
 
-    One heatmap covers unsupervised structure-preservation metrics
-    (Recall, Trustworthiness, Continuity), the other covers supervised
-    label-aware metrics (kNN Accuracy, Silhouette, CONCORDEX).  Both use
-    column-wise min-max normalisation for the colour mapping so that the
-    best value in each metric always stands out, while annotating cells
-    with the original numeric values.
+    Categorical and continuous labels use their respective supervised metric
+    columns. Both heatmaps use column-wise min-max normalisation for colour
+    mapping while annotating cells with the original numeric values.
 
     The k range over which means were computed is shown in the figure
     subtitle for the three mean-based metrics.  When subsampling was applied
@@ -795,29 +935,39 @@ def _plot_summary_heatmaps(
         df_uns = df_uns[["space"] + uns_cols].set_index("space")
         df_uns.columns = [_UNSUPERVISED_COL_LABELS[c] for c in uns_cols]
         df_uns = df_uns.apply(pd.to_numeric, errors="coerce")
-        subtitle = f"Means computed over {k_range_str}"
+        subtitle = f"Means computed over {k_range_str}{sample_note}"
         _render_heatmap(
             data=df_uns,
-            title=f"Unsupervised DR Evaluation  ·  {label_column}",
+            title="Unsupervised DR Evaluation",
             subtitle=subtitle,
             out_path=out_dir / "heatmap_unsupervised.png",
             cmap="YlGnBu",
         )
 
     # ---- Supervised ----
-    df_sup = df[df["type"] == "supervised"].copy()
-    sup_cols = [c for c in _SUPERVISED_COL_LABELS if c in df_sup.columns]
+    df_sup = df[df["type"].astype(str).str.startswith("supervised_")].copy()
+    column_labels = (
+        _CONTINUOUS_COL_LABELS
+        if supervised_kind == "continuous"
+        else _CATEGORICAL_COL_LABELS
+    )
+    sup_cols = [c for c in column_labels if c in df_sup.columns]
     if not df_sup.empty and sup_cols:
         df_sup = df_sup[["space"] + sup_cols].set_index("space")
-        df_sup.columns = [_SUPERVISED_COL_LABELS[c] for c in sup_cols]
+        df_sup.columns = [column_labels[c] for c in sup_cols]
         df_sup = df_sup.apply(pd.to_numeric, errors="coerce")
-        subtitle = f"kNN Accuracy mean over {k_range_str}"
+        subtitle = (
+            "5-fold cross-validated R2; lower values indicate less linear signal"
+            if supervised_kind == "continuous"
+            else "Categorical label-structure metrics"
+        )
         _render_heatmap(
             data=df_sup,
             title=f"Supervised DR Evaluation  ·  {label_column}",
             subtitle=subtitle,
             out_path=out_dir / "heatmap_supervised.png",
             cmap="YlOrRd",
+            lower_is_better=supervised_kind == "continuous",
         )
 
 
@@ -828,6 +978,7 @@ def _render_heatmap(
     subtitle: str,
     out_path: Path,
     cmap: str,
+    lower_is_better: bool = False,
 ) -> None:
     """Render a single publication-quality heatmap to *out_path*.
 
@@ -846,6 +997,8 @@ def _render_heatmap(
 
     # Column-wise min-max normalisation — NaN cells stay NaN (rendered grey).
     norm_data = (data - data.min()) / (data.max() - data.min())
+    if lower_is_better:
+        norm_data = 1.0 - norm_data
 
     # ---- Figure geometry ----
     cell_w = 2.0          # inches per column
@@ -969,7 +1122,7 @@ def _render_heatmap(
     sm.set_array([])
     cbar = fig.colorbar(sm, cax=cbar_ax, orientation="vertical")
     cbar.set_label(
-        "Column-normalised score\n(0 = worst, 1 = best)",
+        "Column-normalised desirability\n(0 = worst, 1 = best)",
         fontsize=15,
     )
     cbar.ax.tick_params(labelsize=15, colors="#444444", length=2)
@@ -1029,6 +1182,67 @@ def _plot_unsupervised_lines(
     save_line_plot("recall", "kNN Recall", "recall.png")
     save_line_plot("trust", "Trustworthiness", "trustworthiness.png")
     save_line_plot("cont", "Continuity", "continuity.png")
+
+
+def _plot_continuous_metrics(
+    *,
+    out_dir: Path,
+    r2_scores: dict[str, float],
+    distance_correlations: dict[str, float],
+    projection_colors: dict[str, str],
+    full_name: str,
+    pca_name: str,
+    pca10_name: str,
+    label_column: str,
+) -> None:
+    """Plot linear predictive power and global dependence by space."""
+
+    def color(space: str) -> str:
+        if space == full_name:
+            return BASE_COLORS["Full"]
+        if space == pca_name:
+            return BASE_COLORS["PCA"]
+        if space == pca10_name:
+            return BASE_COLORS["PCA10"]
+        return projection_colors.get(space, "#333333")
+
+    def plot_metric(
+        values: dict[str, float], title: str, ylabel: str, filename: str
+    ) -> None:
+        spaces = list(values)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        bars = ax.bar(
+            spaces,
+            list(values.values()),
+            color=[color(space) for space in spaces],
+            edgecolor="white",
+            width=0.5,
+        )
+        ax.bar_label(bars, fmt="%.4f", padding=4, fontsize=10)
+        ax.axhline(0.0, color="#555555", linewidth=0.8)
+        ax.set_title(f"{title} ({label_column})", fontsize=13, fontweight="bold")
+        ax.set_ylabel(ylabel, fontsize=11)
+        ax.set_xlabel("Space", fontsize=11)
+        ax.set_xticks(range(len(spaces)))
+        ax.set_xticklabels(spaces, rotation=15, ha="right")
+        ax.grid(True, axis="y", alpha=0.3)
+        ax.spines[["top", "right"]].set_visible(False)
+        fig.tight_layout()
+        fig.savefig(out_dir / filename, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+
+    plot_metric(
+        r2_scores,
+        "Linear Regression Predictive Power",
+        "Cross-validated R2",
+        "linear_r2.png",
+    )
+    plot_metric(
+        distance_correlations,
+        "Distance Correlation",
+        "Distance correlation",
+        "distance_correlation.png",
+    )
 
 
 def _plot_knn_accuracy(
