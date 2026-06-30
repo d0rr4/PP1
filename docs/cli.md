@@ -158,7 +158,8 @@ When `--eval` is enabled, protspace evaluates each embedding set separately afte
   - `--filter` removes classes with fewer than N proteins
 - Metrics:
   - Unsupervised: kNN recall, trustworthiness, and continuity, computed once without label filtering
-  - Categorical: kNN accuracy, silhouette score, and CONCORDEX
+  - Categorical: kNN accuracy, silhouette score, permutation-corrected CONCORDEX (100 label permutations), and up to five-fold stratified cross-validated linear-classifier ROC-AUC and macro F1
+  - Neighborhood metrics use `k = 5, 10, 20, 30, 50`
   - Continuous: five-fold cross-validated linear-regression R2 and distance correlation
 
 Each evaluated embedding gets:
@@ -170,6 +171,7 @@ Each evaluated embedding gets:
 - `knn_accuracy.png`
 - `silhouette.png`
 - `concordex.png`
+- `linear_classifier_auc.png` and `linear_classifier_f1.png` for categorical labels
 - `linear_r2.png` and `distance_correlation.png` for continuous labels
 
 With multiple labels, the unsupervised files remain at

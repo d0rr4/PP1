@@ -17,11 +17,12 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.spatial.distance import pdist, squareform
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score, silhouette_score
-from sklearn.model_selection import KFold, cross_val_predict
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import f1_score, r2_score, roc_auc_score, silhouette_score
+from sklearn.model_selection import KFold, StratifiedKFold, cross_val_predict
 from sklearn.neighbors import NearestNeighbors
-from sklearn.preprocessing import LabelEncoder, normalize
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import LabelEncoder, StandardScaler, normalize
 
 from protspace.data.loaders import EmbeddingSet
 from protspace.data.loaders.embedding_set import MODEL_DISPLAY_NAMES
@@ -30,9 +31,10 @@ matplotlib.use("Agg")
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_K_VALUES = (1, 2, 5, 10, 15, 20, 30, 50)
+DEFAULT_K_VALUES = (5, 10, 20, 30, 50)
 DEFAULT_K_STORED = 300
 DEFAULT_PCA_COMPONENTS = 50
+DEFAULT_CONCORDEX_PERMUTATIONS = 100
 PROJECTION_COLORS = (
     "#0077BB",  # blue
     "#EE7733",  # orange
@@ -490,13 +492,21 @@ def _evaluate_categorical_label(
     n_eval = len(indices)
     k_stored = min(DEFAULT_K_STORED, n_eval - 1)
     k_values = _valid_k_values(n_eval, k_stored)
+    if not k_values:
+        raise ValueError(
+            "not enough proteins for the minimum evaluation neighborhood (k=5)"
+        )
     spaces, colors, full_name, pca_name, pca10_name = _supervised_spaces(
         emb_set, reductions, indices
     )
 
     accuracies: dict[str, list[float]] = {}
     silhouettes: dict[str, float] = {}
-    concordex: dict[str, float] = {}
+    concordex: dict[str, list[float]] = {}
+    linear_auc: dict[str, float] = {}
+    linear_f1: dict[str, float] = {}
+    classifier_splits = _classification_splits(labels_int)
+    classifier_folds = len(classifier_splits) if classifier_splits else 0
     for space, values in spaces.items():
         metric = "cosine" if space == full_name else "euclidean"
         neighbor_values = normalize(values, norm="l2") if metric == "cosine" else values
@@ -505,7 +515,10 @@ def _evaluate_categorical_label(
             _knn_accuracy_at_k(neighbors, labels_int, k) for k in k_values
         ]
         silhouettes[space] = _safe_silhouette(values, labels_int, metric=metric)
-        concordex[space] = _concordex_score(neighbors, labels_int, k=k_values[-1])
+        concordex[space] = _concordex_scores(neighbors, labels_int, k_values)
+        linear_auc[space], linear_f1[space] = _linear_classifier_scores(
+            values, labels_int, classifier_splits
+        )
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _plot_knn_accuracy(
@@ -529,7 +542,18 @@ def _evaluate_categorical_label(
     )
     _plot_concordex(
         out_dir=out_dir,
+        k_values=k_values,
         concordex=concordex,
+        projection_colors=colors,
+        full_name=full_name,
+        pca_name=pca_name,
+        pca10_name=pca10_name,
+        label_column=label_column,
+    )
+    _plot_categorical_classifier_metrics(
+        out_dir=out_dir,
+        auc_scores=linear_auc,
+        f1_scores=linear_f1,
         projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
@@ -542,12 +566,72 @@ def _evaluate_categorical_label(
             "type": "supervised_categorical",
             "label": label_column,
             "n_samples": n_eval,
+            "k_values": ",".join(str(k) for k in k_values),
+            "classifier_folds": classifier_folds,
             "knn_acc_mean": round(float(np.mean(accuracies[space])), 4),
             "silhouette": round(float(silhouettes[space]), 4),
-            "concordex": round(float(concordex[space]), 4),
+            "concordex": round(float(np.mean(concordex[space])), 4),
+            "linear_auc": round(float(linear_auc[space]), 4),
+            "linear_f1_macro": round(float(linear_f1[space]), 4),
         }
         for space in spaces
     ]
+
+
+def _classification_splits(
+    labels: np.ndarray,
+) -> list[tuple[np.ndarray, np.ndarray]] | None:
+    """Create deterministic shared folds, adapting to the smallest class."""
+    _, counts = np.unique(labels, return_counts=True)
+    if len(counts) < 2 or counts.min() < 2:
+        logger.warning(
+            "Linear classifier metrics require at least two classes with "
+            "two samples each; reporting NaN."
+        )
+        return None
+    splitter = StratifiedKFold(
+        n_splits=min(5, int(counts.min())),
+        shuffle=True,
+        random_state=42,
+    )
+    return list(splitter.split(np.zeros(len(labels)), labels))
+
+
+def _linear_classifier_scores(
+    features: np.ndarray,
+    labels: np.ndarray,
+    splits: list[tuple[np.ndarray, np.ndarray]] | None,
+) -> tuple[float, float]:
+    """Return leakage-safe cross-validated macro ROC-AUC and macro F1."""
+    if splits is None:
+        return float("nan"), float("nan")
+    classifier = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(
+            class_weight="balanced",
+            max_iter=2_000,
+            random_state=42,
+        ),
+    )
+    probabilities = cross_val_predict(
+        classifier,
+        features,
+        labels,
+        cv=splits,
+        method="predict_proba",
+    )
+    predictions = probabilities.argmax(axis=1)
+    if probabilities.shape[1] == 2:
+        auc = roc_auc_score(labels, probabilities[:, 1])
+    else:
+        auc = roc_auc_score(
+            labels,
+            probabilities,
+            average="macro",
+            multi_class="ovr",
+        )
+    f1 = f1_score(labels, predictions, average="macro", zero_division=0)
+    return float(auc), float(f1)
 
 
 def _evaluate_continuous_label(
@@ -647,43 +731,133 @@ def _concordex_score(
     neighbors: np.ndarray,
     labels: np.ndarray,
     k: int,
+    *,
+    n_permutations: int = DEFAULT_CONCORDEX_PERMUTATIONS,
+    random_state: int = 42,
 ) -> float:
-    """CONCORDEX neighbourhood-label-consistency score.
+    """Return the permutation-corrected CONCORDEX coefficient.
 
-    For each point, counts how many of its k nearest neighbours share the
-    same class label, then normalises by the expected proportion under a
-    random (null) assignment based on class frequencies.
-
-    A score > 1 means labels cluster better than chance; a score of 1 means
-    random; a score < 1 means anti-clustering.
-
-    Reference: Kalinichenko et al., *Bioinformatics* (2023) — CONCORDEX.
+    The implementation follows Jackson et al. (2023): construct the
+    neighborhood consolidation matrix, average it by source label to obtain
+    the label-similarity matrix, and use the mean of that matrix's diagonal as
+    the raw coefficient. The corrected coefficient divides the raw value by
+    the mean raw coefficient from permuted label assignments.
 
     Args:
         neighbors: kNN index array of shape (n, k_stored); only the first
                    ``k`` columns are used.
         labels:    Integer class labels of length n.
-        k:         Neighbourhood size to evaluate.
+        k: Number of nearest neighbors to evaluate.
+        n_permutations: Number of label permutations used for correction.
+        random_state: Seed used to make the null distribution reproducible.
 
     Returns:
-        CONCORDEX ratio (float), or NaN if fewer than 2 classes are present.
+        Corrected CONCORDEX coefficient, or NaN when it is undefined.
     """
-    n_classes = int(labels.max()) + 1
-    if n_classes < 2:
-        return float("nan")
+    return _concordex_scores(
+        neighbors,
+        labels,
+        [k],
+        n_permutations=n_permutations,
+        random_state=random_state,
+    )[0]
 
+
+def _concordex_scores(
+    neighbors: np.ndarray,
+    labels: np.ndarray,
+    k_values: list[int],
+    *,
+    n_permutations: int = DEFAULT_CONCORDEX_PERMUTATIONS,
+    random_state: int = 42,
+) -> list[float]:
+    """Compute corrected CONCORDEX for several k values using one null draw."""
+    if n_permutations < 1:
+        raise ValueError("n_permutations must be at least 1")
+    labels = np.asarray(labels)
+    if labels.ndim != 1 or labels.shape[0] != neighbors.shape[0]:
+        raise ValueError("labels must be one-dimensional and aligned with neighbors")
+    if np.unique(labels).size < 2:
+        return [float("nan")] * len(k_values)
+
+    raw = _raw_concordex_coefficients(neighbors, labels, k_values)
+    rng = np.random.default_rng(random_state)
+    null_coefficients = np.empty((n_permutations, len(k_values)), dtype=float)
+    for iteration in range(n_permutations):
+        permuted = rng.permutation(labels)
+        null_coefficients[iteration] = _raw_concordex_coefficients(
+            neighbors, permuted, k_values
+        )
+    mean_null = null_coefficients.mean(axis=0)
+    return [
+        float(value / expected) if expected != 0 else float("nan")
+        for value, expected in zip(raw, mean_null, strict=True)
+    ]
+
+
+def _raw_concordex_coefficients(
+    neighbors: np.ndarray,
+    labels: np.ndarray,
+    k_values: list[int],
+) -> np.ndarray:
+    """Compute class-balanced diagonal means for multiple neighborhood sizes."""
+    if not k_values or min(k_values) < 1 or max(k_values) > neighbors.shape[1]:
+        raise ValueError("k values must be within the stored neighbor range")
+    _, encoded = np.unique(labels, return_inverse=True)
+    n_classes = int(encoded.max()) + 1
+    class_sizes = np.bincount(encoded, minlength=n_classes)
+    neighbor_labels = encoded[neighbors[:, : max(k_values)]]
+    cumulative_matches = np.cumsum(
+        neighbor_labels == encoded[:, None], axis=1, dtype=np.int32
+    )
+
+    coefficients = np.empty(len(k_values), dtype=float)
+    for index, k in enumerate(k_values):
+        point_fractions = cumulative_matches[:, k - 1] / k
+        class_fractions = (
+            np.bincount(encoded, weights=point_fractions, minlength=n_classes)
+            / class_sizes
+        )
+        coefficients[index] = class_fractions.mean()
+    return coefficients
+
+
+def _neighborhood_consolidation_matrix(
+    neighbors: np.ndarray,
+    labels: np.ndarray,
+    k: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build the paper's n-by-m neighborhood consolidation matrix K."""
+    unique_labels, encoded = np.unique(labels, return_inverse=True)
     k_use = min(k, neighbors.shape[1])
-    neighbor_labels = labels[neighbors[:, :k_use]]  # (n, k_use)
+    if k_use < 1:
+        raise ValueError("k must be at least 1 and neighbors must not be empty")
 
-    same_class = (neighbor_labels == labels[:, None]).sum(axis=1)
-    observed = same_class.mean() / k_use
+    neighbor_labels = encoded[neighbors[:, :k_use]]
+    consolidation = np.zeros(
+        (neighbors.shape[0], unique_labels.size), dtype=np.float64
+    )
+    rows = np.repeat(np.arange(neighbors.shape[0]), k_use)
+    np.add.at(consolidation, (rows, neighbor_labels.ravel()), 1.0)
+    consolidation /= k_use
+    return consolidation, encoded
 
-    class_freq = np.bincount(labels, minlength=n_classes) / len(labels)
-    expected = float((class_freq**2).sum())
 
-    if expected == 0:
-        return float("nan")
-    return float(observed / expected)
+def _raw_concordex_coefficient(
+    neighbors: np.ndarray,
+    labels: np.ndarray,
+    k: int,
+) -> float:
+    """Compute the uncorrected, class-balanced CONCORDEX coefficient."""
+    consolidation, encoded = _neighborhood_consolidation_matrix(
+        neighbors, labels, k
+    )
+    n_classes = consolidation.shape[1]
+    similarity = np.zeros((n_classes, n_classes), dtype=np.float64)
+    np.add.at(similarity, encoded, consolidation)
+    class_sizes = np.bincount(encoded, minlength=n_classes)
+    similarity /= class_sizes[:, None]
+    return float(np.trace(similarity) / n_classes)
 
 
 # ---------------------------------------------------------------------------
@@ -886,7 +1060,9 @@ _UNSUPERVISED_COL_LABELS: dict[str, str] = {
 _CATEGORICAL_COL_LABELS: dict[str, str] = {
     "knn_acc_mean": "kNN Accuracy\n(mean)",
     "silhouette": "Silhouette\nScore",
-    "concordex": "CONCORDEX",
+    "concordex": "CONCORDEX\n(mean)",
+    "linear_auc": "Linear Classifier\nROC-AUC",
+    "linear_f1_macro": "Linear Classifier\nMacro-F1",
 }
 _CONTINUOUS_COL_LABELS: dict[str, str] = {
     "linear_r2": "Linear Regression\nCV R2",
@@ -953,14 +1129,32 @@ def _plot_summary_heatmaps(
     )
     sup_cols = [c for c in column_labels if c in df_sup.columns]
     if not df_sup.empty and sup_cols:
+        stored_k = (
+            df_sup["k_values"].dropna()
+            if "k_values" in df_sup.columns
+            else pd.Series(dtype=str)
+        )
+        stored_folds = (
+            df_sup["classifier_folds"].dropna()
+            if "classifier_folds" in df_sup.columns
+            else pd.Series(dtype=int)
+        )
         df_sup = df_sup[["space"] + sup_cols].set_index("space")
         df_sup.columns = [column_labels[c] for c in sup_cols]
         df_sup = df_sup.apply(pd.to_numeric, errors="coerce")
-        subtitle = (
-            "5-fold cross-validated R2; lower values indicate less linear signal"
-            if supervised_kind == "continuous"
-            else "Categorical label-structure metrics"
-        )
+        if supervised_kind == "continuous":
+            subtitle = (
+                "5-fold cross-validated R2; "
+                "lower values indicate less linear signal"
+            )
+        else:
+            used_k = str(stored_k.iloc[0]).split(",") if not stored_k.empty else []
+            categorical_k = f"k in {{{', '.join(used_k)}}}"
+            folds = int(stored_folds.iloc[0]) if not stored_folds.empty else 0
+            subtitle = (
+                f"kNN Accuracy and CONCORDEX means over {categorical_k}; "
+                f"linear classifier uses {folds}-fold CV"
+            )
         _render_heatmap(
             data=df_sup,
             title=f"Supervised DR Evaluation  ·  {label_column}",
@@ -1245,6 +1439,80 @@ def _plot_continuous_metrics(
     )
 
 
+def _plot_categorical_classifier_metrics(
+    *,
+    out_dir: Path,
+    auc_scores: dict[str, float],
+    f1_scores: dict[str, float],
+    projection_colors: dict[str, str],
+    full_name: str,
+    pca_name: str,
+    pca10_name: str,
+    label_column: str,
+) -> None:
+    """Plot cross-validated linear-classifier predictive power by space."""
+
+    def color(space: str) -> str:
+        if space == full_name:
+            return BASE_COLORS["Full"]
+        if space == pca_name:
+            return BASE_COLORS["PCA"]
+        if space == pca10_name:
+            return BASE_COLORS["PCA10"]
+        return projection_colors.get(space, "#333333")
+
+    def plot_metric(
+        values: dict[str, float],
+        title: str,
+        ylabel: str,
+        filename: str,
+        baseline: float | None = None,
+    ) -> None:
+        spaces = list(values)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        bars = ax.bar(
+            spaces,
+            list(values.values()),
+            color=[color(space) for space in spaces],
+            edgecolor="white",
+            width=0.5,
+        )
+        ax.bar_label(bars, fmt="%.4f", padding=4, fontsize=10)
+        if baseline is not None:
+            ax.axhline(
+                baseline,
+                color="crimson",
+                linestyle="--",
+                linewidth=1.2,
+                label=f"Random baseline ({baseline:.1f})",
+            )
+            ax.legend(fontsize=9, framealpha=0.7)
+        ax.set_title(f"{title} ({label_column})", fontsize=13, fontweight="bold")
+        ax.set_ylabel(ylabel, fontsize=11)
+        ax.set_xlabel("Space", fontsize=11)
+        ax.set_xticks(range(len(spaces)))
+        ax.set_xticklabels(spaces, rotation=15, ha="right")
+        ax.grid(True, axis="y", alpha=0.3)
+        ax.spines[["top", "right"]].set_visible(False)
+        fig.tight_layout()
+        fig.savefig(out_dir / filename, dpi=150, bbox_inches="tight")
+        plt.close(fig)
+
+    plot_metric(
+        auc_scores,
+        "Linear Classifier ROC-AUC",
+        "Cross-validated ROC-AUC",
+        "linear_classifier_auc.png",
+        baseline=0.5,
+    )
+    plot_metric(
+        f1_scores,
+        "Linear Classifier Macro-F1",
+        "Cross-validated Macro-F1",
+        "linear_classifier_f1.png",
+    )
+
+
 def _plot_knn_accuracy(
     *,
     out_dir: Path,
@@ -1336,14 +1604,15 @@ def _plot_silhouette(
 def _plot_concordex(
     *,
     out_dir: Path,
-    concordex: dict[str, float],
+    k_values: list[int],
+    concordex: dict[str, list[float]],
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
     pca10_name: str,
     label_column: str,
 ) -> None:
-    """Bar chart of CONCORDEX scores, one bar per space.
+    """Plot permutation-corrected CONCORDEX across neighborhood sizes.
 
     A dashed horizontal line at y=1 marks the random-assignment baseline.
     Scores above 1 indicate better-than-chance neighbourhood purity.
@@ -1358,28 +1627,32 @@ def _plot_concordex(
             return BASE_COLORS["PCA10"]
         return projection_colors.get(space, "#333333")
 
-    spaces = list(concordex.keys())
-    values = list(concordex.values())
-
     fig, ax = plt.subplots(figsize=(10, 5))
-    bars = ax.bar(
-        spaces,
-        values,
-        color=[get_space_color(s) for s in spaces],
-        edgecolor="white",
-        width=0.5,
+    for space, scores in concordex.items():
+        ax.plot(
+            k_values,
+            scores,
+            color=get_space_color(space),
+            marker="o",
+            markersize=4,
+            linewidth=1.8,
+            label=space,
+        )
+    ax.axhline(
+        1.0,
+        color="crimson",
+        linestyle="--",
+        linewidth=1.2,
+        label="Random baseline (1.0)",
     )
-    ax.bar_label(bars, fmt="%.4f", padding=4, fontsize=10)
-    ax.axhline(1.0, color="crimson", linestyle="--", linewidth=1.2, label="Random baseline (1.0)")
     ax.set_title(
         f"CONCORDEX Score ({label_column})", fontsize=13, fontweight="bold"
     )
     ax.set_ylabel("Score (ratio to random)", fontsize=11)
-    ax.set_xlabel("Space", fontsize=11)
-    ax.set_xticks(range(len(spaces)))
-    ax.set_xticklabels(spaces, rotation=15, ha="right")
-    ax.legend(fontsize=9, framealpha=0.7)
-    ax.grid(True, axis="y", alpha=0.3)
+    ax.set_xlabel("k", fontsize=11)
+    ax.set_xticks(k_values)
+    ax.legend(fontsize=9, framealpha=0.7, bbox_to_anchor=(1.02, 1), loc="upper left")
+    ax.grid(True, alpha=0.3)
     ax.spines[["top", "right"]].set_visible(False)
 
     fig.tight_layout()

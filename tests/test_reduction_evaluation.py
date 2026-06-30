@@ -8,9 +8,15 @@ import pytest
 
 import protspace.data.evaluation.reduction as reduction_evaluation
 from protspace.data.evaluation.reduction import (
+    DEFAULT_K_VALUES,
+    _classification_splits,
+    _concordex_score,
     _distance_correlation,
+    _linear_classifier_scores,
+    _neighborhood_consolidation_matrix,
     _parse_label_specs,
     _prepare_labels_lookup,
+    _raw_concordex_coefficient,
     run_reduction_evaluation,
 )
 from protspace.data.loaders import EmbeddingSet
@@ -40,12 +46,90 @@ def test_parse_label_specs_supports_typed_and_legacy_labels():
     ]
 
 
+def test_evaluation_uses_shared_k_values():
+    assert DEFAULT_K_VALUES == (5, 10, 20, 30, 50)
+
+
+def test_linear_classifier_scores_detect_separable_labels():
+    rng = np.random.default_rng(11)
+    labels = np.repeat([0, 1], 30)
+    features = rng.normal(scale=0.2, size=(60, 4))
+    features[:, 0] += np.where(labels == 0, -2.0, 2.0)
+
+    auc, f1 = _linear_classifier_scores(
+        features, labels, _classification_splits(labels)
+    )
+
+    assert auc > 0.99
+    assert f1 > 0.95
+
+
 def test_distance_correlation_detects_deterministic_dependence():
     values = np.arange(20, dtype=float)
 
     score = _distance_correlation(values[:, None], values)
 
     assert score == pytest.approx(1.0)
+
+
+def test_concordex_builds_neighborhood_consolidation_matrix():
+    neighbors = np.array([[1], [0], [3], [0]])
+    labels = np.array([0, 0, 1, 1])
+
+    consolidation, encoded = _neighborhood_consolidation_matrix(
+        neighbors, labels, k=1
+    )
+
+    np.testing.assert_array_equal(encoded, labels)
+    np.testing.assert_allclose(
+        consolidation,
+        np.array(
+            [
+                [1.0, 0.0],
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [1.0, 0.0],
+            ]
+        ),
+    )
+
+
+def test_raw_concordex_averages_similarity_diagonal_by_class():
+    neighbors = np.array([[1], [0], [0], [0]])
+    labels = np.array([0, 0, 0, 1])
+
+    coefficient = _raw_concordex_coefficient(neighbors, labels, k=1)
+
+    # Class 0 has diagonal similarity 1 and class 1 has 0. The paper gives
+    # both classes equal weight, rather than weighting by their sample counts.
+    assert coefficient == pytest.approx(0.5)
+
+
+def test_corrected_concordex_uses_mean_permuted_coefficient():
+    neighbors = np.array([[1], [0], [3], [2]])
+    labels = np.array([0, 0, 1, 1])
+    n_permutations = 20
+    random_state = 7
+    rng = np.random.default_rng(random_state)
+    null_coefficients = []
+    for _ in range(n_permutations):
+        permuted = rng.permutation(labels)
+        class_scores = []
+        for label in np.unique(permuted):
+            members = np.flatnonzero(permuted == label)
+            same_label = permuted[neighbors[members, 0]] == label
+            class_scores.append(same_label.mean())
+        null_coefficients.append(np.mean(class_scores))
+
+    coefficient = _concordex_score(
+        neighbors,
+        labels,
+        k=1,
+        n_permutations=n_permutations,
+        random_state=random_state,
+    )
+
+    assert coefficient == pytest.approx(1.0 / np.mean(null_coefficients))
 
 
 def test_run_reduction_evaluation_writes_expected_files(
@@ -240,9 +324,14 @@ def test_multiple_labels_use_separate_supervised_output_directories(
     assert set(root_summary["type"]) == {"unsupervised"}
     assert set(categorical_summary["type"]) == {"supervised_categorical"}
     assert set(categorical_summary["n_samples"]) == {12}
-    assert {"knn_acc_mean", "silhouette", "concordex"}.issubset(
-        categorical_summary.columns
-    )
+    assert set(categorical_summary["k_values"]) == {5}
+    assert {
+        "knn_acc_mean",
+        "silhouette",
+        "concordex",
+        "linear_auc",
+        "linear_f1_macro",
+    }.issubset(categorical_summary.columns)
     assert set(continuous_summary["type"]) == {"supervised_continuous"}
     assert set(continuous_summary["n_samples"]) == {12}
     assert {"linear_r2", "distance_correlation"}.issubset(
@@ -251,3 +340,6 @@ def test_multiple_labels_use_separate_supervised_output_directories(
     assert (continuous_dir / "linear_r2.png").exists()
     assert (continuous_dir / "distance_correlation.png").exists()
     assert (continuous_dir / "heatmap_supervised.png").exists()
+    categorical_dir = eval_dir / "protein_families"
+    assert (categorical_dir / "linear_classifier_auc.png").exists()
+    assert (categorical_dir / "linear_classifier_f1.png").exists()

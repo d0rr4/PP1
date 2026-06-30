@@ -75,7 +75,11 @@ protspace prepare -i embeddings.h5 -m pca2,umap2 --eval \
   --label continuous:sequence_length -o output
 ```
 
-Categorical labels use kNN accuracy, silhouette score, and CONCORDEX. Continuous
+Categorical labels use kNN accuracy, silhouette score, and the
+permutation-corrected CONCORDEX coefficient (100 label permutations), plus
+up to five-fold stratified cross-validated linear-classifier ROC-AUC and macro F1.
+Neighborhood metrics are evaluated at `k=5,10,20,30,50`.
+Continuous
 labels use deterministic five-fold cross-validated linear-regression R2 and
 distance correlation; values near zero indicate little predictive signal or
 dependence. All metrics share a deterministic 2,000-protein cap.

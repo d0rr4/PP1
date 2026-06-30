@@ -1,6 +1,7 @@
 
 3FTX
 
+
 1
 protspace prepare \
     -i embeddings/3FTx_mature_prot_t5_clean.h5:prott5 \
@@ -8,11 +9,12 @@ protspace prepare \
     -m rhopca64+umap2,rhopca128+umap2,rhopca256+umap2,rhopca512+umap2,rhopca1024+umap2 \
     -m tsne2,rhopca64+tsne2,rhopca128+tsne2,rhopca256+tsne2,rhopca512+tsne2,rhopca1024+umap2 \
     -a datasets/3FTx_annotation.csv \
-    --background embeddings/non3FTx_signal_signalp6_merged_lengthmatched_prot_t5.h5 \
-    -o protspace_results/3FTx_5050_singalp6 \
+    --background embeddings/non3FTx_5050_lengthmatched.h5 \
+    -o protspace_results/3FTx_5050 \
     --refetch annotations,projections \
     --eval \
     --label major_group \
+    --label signalp6.0 \
     --filter 50
 
 
@@ -26,12 +28,16 @@ protspace prepare \
     -m rhopca64+umap2,rhopca128+umap2,rhopca256+umap2,rhopca512+umap2,rhopca1024+umap2 \
     -m tsne2,rhopca64+tsne2,rhopca128+tsne2,rhopca256+tsne2,rhopca512+tsne2,rhopca1024+umap2 \
     -a datasets/3FTx_annotation.csv \
-    --background embeddings/3FTx_signal_signalp6_merged_prot_t5.h5 \
-    -o protspace_results/3FTx_5050_singalp6_target\
+    --background embeddings/non3FTx_signal_signalp6_merged_lengthmatched_prot_t5.h5 \
+    -o protspace_results/3FTx_5050_singalp6 \
     --refetch annotations,projections \
     --eval \
     --label major_group \
+    --label signalp6.0 \
     --filter 50
+
+
+
 
 
 3
@@ -41,12 +47,15 @@ protspace prepare \
     -m rhopca64+umap2,rhopca128+umap2,rhopca256+umap2,rhopca512+umap2,rhopca1024+umap2 \
     -m tsne2,rhopca64+tsne2,rhopca128+tsne2,rhopca256+tsne2,rhopca512+tsne2,rhopca1024+umap2 \
     -a datasets/3FTx_annotation.csv \
-    --background embeddings/metazoa_nontoxin_signalpeptide_lengthmatched_signalp6_merged.h5 \
-    -o protspace_results/3FTx_5050_singalp6_length_toxins \
+    --background embeddings/3FTx_signal_signalp6_merged_prot_t5.h5 \
+    -o protspace_results/3FTx_5050_singalp6_target\
     --refetch annotations,projections \
     --eval \
     --label major_group \
+    --label signalp6.0 \
     --filter 50
+
+
 
 
 TOXINS
@@ -65,6 +74,7 @@ protspace prepare \
     --refetch annotations,projections \
     --eval \
     --label protein_families \
+    --label signal_peptide \
     --filter 50
 
 2
@@ -138,155 +148,30 @@ protspace prepare \
     --refetch annotations,projections \
     --eval \
     --label protein_families \
+    --label signal_peptide \
     --filter 50
 
 
-7
+
+
+
+
+
+
+UNIREF50
+
+
 protspace prepare \
-    -i embeddings/toxins_filtered_15_300.h5:prott5 \
+    -i embeddings/uniref50_under_2k_subset.h5:prott5 \
     -m pca2,rhopca2,umap2\
     -m rhopca64+umap2,rhopca128+umap2,rhopca256+umap2,rhopca512+umap2,rhopca1024+umap2 \
-    -m tsne2,rhopca64+tsne2,rhopca128+tsne2,rhopca256+tsne2,rhopca512+tsne2,rhopca1024+umap2 \
+    -m tsne2,rhopca64+tsne2,rhopca128+tsne2,rhopca256+tsne2,rhopca512+tsne2,rhopca1024+tsne2 \
     -a interpro,biocentral,uniprot \
-    --background embeddings/metazoa_nontoxin_signalp6_merged_lengthmatched_delta_full_minus_signalp6.h5 \
-    -o protspace_results/toxins_5050_signalp6_length_delta \
+    --background embeddings/LENGTH_real.h5 \
+    -o protspace_results/length_real \
     --refetch annotations,projections \
     --eval \
     --label protein_families \
+    --label continuous:length \
     --filter 50
-
-
-
-
-
-8
-protspace prepare \
-    -i embeddings/toxins_filtered_15_300.h5:prott5 \
-    -m pca2,rhopca2,umap2\
-    -m rhopca64+umap2,rhopca128+umap2,rhopca256+umap2,rhopca512+umap2,rhopca1024+umap2 \
-    -m tsne2,rhopca64+tsne2,rhopca128+tsne2,rhopca256+tsne2,rhopca512+tsne2,rhopca1024+umap2 \
-    -a interpro,biocentral,uniprot \
-    --background embeddings/toxins_signalpeptide_signalp9_removed_delta_symmetric_background_by_uniprot_id.h5 \
-    -o protspace_results/toxins_5050_signalp6_target_delta \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-
-
-
-
-Human (test signal peptide prediction)
-
-
-protspace prepare \
-    -i embeddings/human.h5:prott5 \
-    -m rhopca2,pca2,umap2,tsne2,rhopca50+umap2,rhopca50+tsne2,pca50+umap2,pca50+tsne2, \
-    -a interpro,biocentral,uniprot \
-    --background embeddings/nonhuman_signalpeptide.h5 \
-    -o protspace_results/human \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-Multi  
-
-
-protspace prepare \
-    -i embeddings/uniprotkb_go_exp_OR_go_ida_OR_go_ipi_OR_2026_06_17.h5:prott5 \
-    -m rhopca2,pca2,umap2,rhopca50+umap2,pca50+umap2  \
-    -a interpro,biocentral,uniprot \
-    --background embeddings/uniprotkb_NOT_go_exp_OR_go_ida_OR_go_ipi_OR_2026_06_17.h5 \
-    -o protspace_results/Prot-T5 \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-
-protspace prepare \
-    -i embeddings/uniprotkb_go_exp_OR_go_ida_OR_go_ipi_OR_2026_06_17.h5:prott5 \
-    -m rhopca2,pca2,umap2,rhopca50+umap2,pca50+umap2  \
-    -a interpro,biocentral,uniprot \
-    --background embeddings/uniprotkb_NOT_go_exp_OR_go_ida_OR_go_ipi_OR_2026_06_17.h5 \
-    -o protspace_results/Prot-T5_length \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-
-
-protspace prepare \
-    -i embeddings/Prot-T5.h5:prott5 \
-    -m rhopca2,pca2,umap2,rhopca50+umap2,pca50+umap2  \
-    -a interpro,biocentral,uniprot \
-    --background <PROTT5_BACKGROUND>.h5 \
-    -o protspace_results/Prot-T5 \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-
-
-protspace prepare \
-    -i embeddings/ESM.h5:esm \
-    -m pca2,umap2,tsne2 \
-    -o protspace_results/ESM \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-
-
-protspace prepare \
-    -i embeddings/Prost-T5.h5:prostt5 \
-    -m pca2,umap2,tsne2 \
-    -o protspace_results/Prost-T5 \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-
-
-protspace prepare \
-    -i embeddings/Ankh3-Large.h5:ankh3-large \
-    -m pca2,umap2,tsne2 \
-    -o protspace_results/Ankh3-Large \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-
-
-
-
-
-
-Swissprot
-
-protspace prepare \
-    -i embeddings/per-protein.h5:prott5 \
-    -m rhopca2,pca2,umap2,tsne2  \
-    -o protspace_results/Prot-T5 \
-    --refetch annotations,projections \
-    --eval \
-    --label protein_families \
-    --filter 50
-
-
-
-CATH S40
-
-protspace prepare \
-    -i embeddings/cath.h5:prott5 \
-    -m pca2,umap2,tsne2 \
-    -a datasets/cath_annotation.csv \
-    -o protspace_results/cath
 
