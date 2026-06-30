@@ -1,0 +1,6 @@
+space	type	recall_mean	trust_mean	cont_mean	knn_acc_mean	silhouette	concordex
+rhoPCA1024+UMAP2 - Full	unsupervised	0.4294	0.9881	0.9898			
+Original (1024)	supervised				0.8948	0.1408	27.3147
+PCA50	supervised				0.8256	0.0402	23.7245
+PCA10	supervised				0.6485	-0.1169	16.3661
+rhoPCA1024+UMAP2	supervised				0.8144	-0.2573	27.4048

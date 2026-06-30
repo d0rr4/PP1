@@ -1,0 +1,18 @@
+space	type	label	n_samples	linear_r2	distance_correlation
+Original (1024)	supervised_continuous	length	9962	0.9257	0.4893
+PCA50	supervised_continuous	length	9962	0.7808	0.4785
+PCA10	supervised_continuous	length	9962	0.5103	0.4584
+PCA2	supervised_continuous	length	9962	0.0257	0.2149
+rhoPCA2	supervised_continuous	length	9962	0.1369	0.2981
+UMAP2	supervised_continuous	length	9962	0.0486	0.259
+rhoPCA64+UMAP2	supervised_continuous	length	9962	0.0945	0.3042
+rhoPCA128+UMAP2	supervised_continuous	length	9962	0.0695	0.275
+rhoPCA256+UMAP2	supervised_continuous	length	9962	0.0365	0.2459
+rhoPCA512+UMAP2	supervised_continuous	length	9962	0.0218	0.24
+rhoPCA1024+UMAP2	supervised_continuous	length	9962	0.0106	0.2382
+t-SNE2	supervised_continuous	length	9962	0.038	0.2475
+rhoPCA64+t-SNE2	supervised_continuous	length	9962	0.0818	0.2904
+rhoPCA128+t-SNE2	supervised_continuous	length	9962	0.0794	0.2898
+rhoPCA256+t-SNE2	supervised_continuous	length	9962	0.0757	0.2906
+rhoPCA512+t-SNE2	supervised_continuous	length	9962	0.0728	0.2864
+rhoPCA1024+t-SNE2	supervised_continuous	length	9962	0.0683	0.2839

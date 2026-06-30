@@ -1,0 +1,15 @@
+space	type	recall_mean	trust_mean	cont_mean
+PCA2 - Full	unsupervised	0.0291	0.9516	0.9561
+rhoPCA2 - Full	unsupervised	0.024	0.949	0.9549
+UMAP2 - Full	unsupervised	0.213	0.973	0.9808
+rhoPCA64+UMAP2 - Full	unsupervised	0.2056	0.9705	0.9764
+rhoPCA128+UMAP2 - Full	unsupervised	0.2121	0.9705	0.9765
+rhoPCA256+UMAP2 - Full	unsupervised	0.2105	0.97	0.9759
+rhoPCA512+UMAP2 - Full	unsupervised	0.2036	0.9693	0.9752
+rhoPCA1024+UMAP2 - Full	unsupervised	0.2002	0.9686	0.9748
+t-SNE2 - Full	unsupervised	0.4492	0.9866	0.9827
+rhoPCA64+t-SNE2 - Full	unsupervised	0.3677	0.9822	0.9775
+rhoPCA128+t-SNE2 - Full	unsupervised	0.3757	0.9819	0.9778
+rhoPCA256+t-SNE2 - Full	unsupervised	0.3713	0.981	0.9769
+rhoPCA512+t-SNE2 - Full	unsupervised	0.3649	0.9799	0.9762
+rhoPCA1024+t-SNE2 - Full	unsupervised	0.3614	0.9795	0.9759

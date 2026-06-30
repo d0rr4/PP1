@@ -16,11 +16,12 @@ import pandas as pd
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.spatial.distance import pdist, squareform
+from scipy.stats import spearmanr
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, silhouette_score
 from sklearn.model_selection import KFold, cross_val_predict
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
 from sklearn.preprocessing import LabelEncoder, normalize
 
 from protspace.data.loaders import EmbeddingSet
@@ -51,6 +52,7 @@ LINESTYLES_GT = {"Full": "-"}
 # Hard cap shared by all metrics. Distance correlation has O(n^2) cost, so a
 # single cap keeps every reported sample size comparable and memory bounded.
 _MAX_DIST_SAMPLES = 10_000
+_KNN_REGRESSION_K = 5
 
 
 @dataclass(frozen=True)
@@ -575,17 +577,36 @@ def _evaluate_continuous_label(
     )
     folds = KFold(n_splits=min(5, len(targets)), shuffle=True, random_state=42)
     r2_scores: dict[str, float] = {}
+    knn_r2_scores: dict[str, float] = {}
     distance_correlations: dict[str, float] = {}
+    spearman_dcorr: dict[str, float] = {}
     for space, values in spaces.items():
+        # Normalize the full embedding so euclidean distance ≡ cosine, matching
+        # the metric used by the unsupervised and categorical evaluations.
+        norm_values = normalize(values, norm="l2") if space == full_name else values
+
         predictions = cross_val_predict(LinearRegression(), values, targets, cv=folds)
         r2_scores[space] = float(r2_score(targets, predictions))
+
+        knn = KNeighborsRegressor(
+            n_neighbors=min(_KNN_REGRESSION_K, len(targets) - 1),
+            metric="euclidean",
+            algorithm="brute",
+            n_jobs=-1,
+        )
+        knn_preds = cross_val_predict(knn, norm_values, targets, cv=folds)
+        knn_r2_scores[space] = float(r2_score(targets, knn_preds))
+
         distance_correlations[space] = _distance_correlation(values, targets)
+        spearman_dcorr[space] = _spearman_dist_correlation(norm_values, targets)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _plot_continuous_metrics(
         out_dir=out_dir,
         r2_scores=r2_scores,
+        knn_r2_scores=knn_r2_scores,
         distance_correlations=distance_correlations,
+        spearman_dcorr=spearman_dcorr,
         projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
@@ -607,7 +628,9 @@ def _evaluate_continuous_label(
             "label": label_column,
             "n_samples": len(indices),
             "linear_r2": round(r2_scores[space], 4),
+            "knn_r2": round(knn_r2_scores[space], 4),
             "distance_correlation": round(distance_correlations[space], 4),
+            "spearman_dcorr": round(spearman_dcorr[space], 4),
         }
         for space in spaces
     ]
@@ -636,6 +659,19 @@ def _distance_correlation(features: np.ndarray, target: np.ndarray) -> float:
     if denominator == 0:
         return float("nan")
     return float(np.clip(np.sqrt(covariance_sq / denominator), 0.0, 1.0))
+
+
+def _spearman_dist_correlation(features: np.ndarray, target: np.ndarray) -> float:
+    """Spearman rank correlation between pairwise feature distances and absolute target differences.
+
+    A model-free alternative to distance correlation: tests whether points that
+    are close in feature space also tend to have similar target values, using
+    rank correlation so monotone non-linearities don't inflate the score.
+    """
+    feat_dists = pdist(features, metric="euclidean")
+    target_diffs = pdist(target[:, None], metric="cityblock")
+    rho, _ = spearmanr(feat_dists, target_diffs)
+    return float(np.clip(rho, -1.0, 1.0))
 
 
 # ---------------------------------------------------------------------------
@@ -889,8 +925,10 @@ _CATEGORICAL_COL_LABELS: dict[str, str] = {
     "concordex": "CONCORDEX",
 }
 _CONTINUOUS_COL_LABELS: dict[str, str] = {
-    "linear_r2": "Linear Regression\nCV R2",
+    "linear_r2": "Linear\nR²",
+    "knn_r2": f"kNN\nR² (k={_KNN_REGRESSION_K})",
     "distance_correlation": "Distance\nCorrelation",
+    "spearman_dcorr": "Spearman\nDist. Corr.",
 }
 
 
@@ -957,7 +995,7 @@ def _plot_summary_heatmaps(
         df_sup.columns = [column_labels[c] for c in sup_cols]
         df_sup = df_sup.apply(pd.to_numeric, errors="coerce")
         subtitle = (
-            "5-fold cross-validated R2; lower values indicate less linear signal"
+            f"5-fold CV · kNN k={_KNN_REGRESSION_K} · Spearman ρ on pairwise distances"
             if supervised_kind == "continuous"
             else "Categorical label-structure metrics"
         )
@@ -967,7 +1005,7 @@ def _plot_summary_heatmaps(
             subtitle=subtitle,
             out_path=out_dir / "heatmap_supervised.png",
             cmap="YlOrRd",
-            lower_is_better=supervised_kind == "continuous",
+            lower_is_better=False,
         )
 
 
@@ -1188,14 +1226,16 @@ def _plot_continuous_metrics(
     *,
     out_dir: Path,
     r2_scores: dict[str, float],
+    knn_r2_scores: dict[str, float],
     distance_correlations: dict[str, float],
+    spearman_dcorr: dict[str, float],
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
     pca10_name: str,
     label_column: str,
 ) -> None:
-    """Plot linear predictive power and global dependence by space."""
+    """Plot linear/kNN predictive power and pairwise distance correlations by space."""
 
     def color(space: str) -> str:
         if space == full_name:
@@ -1234,14 +1274,26 @@ def _plot_continuous_metrics(
     plot_metric(
         r2_scores,
         "Linear Regression Predictive Power",
-        "Cross-validated R2",
+        "Cross-validated R²",
         "linear_r2.png",
+    )
+    plot_metric(
+        knn_r2_scores,
+        f"kNN Regression Predictive Power (k={_KNN_REGRESSION_K})",
+        "Cross-validated R²",
+        "knn_r2.png",
     )
     plot_metric(
         distance_correlations,
         "Distance Correlation",
         "Distance correlation",
         "distance_correlation.png",
+    )
+    plot_metric(
+        spearman_dcorr,
+        "Spearman Distance Correlation",
+        "Spearman ρ",
+        "spearman_distance_correlation.png",
     )
 
 
