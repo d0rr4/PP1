@@ -1,7 +1,9 @@
 """Tests for pipeline utility functions."""
 
 from collections import Counter
+from pathlib import Path
 
+import h5py
 import numpy as np
 import pytest
 
@@ -12,11 +14,14 @@ from protspace.data.loaders.embedding_set import (
     merge_same_name_sets,
 )
 from protspace.data.processors.pipeline import (
+    BackgroundSpec,
     MethodSpec,
     PipelineConfig,
     ReductionPipeline,
     _run_with_overridden_config,
     disambiguation_suffix,
+    parse_background_spec,
+    parse_background_specs,
     parse_method_spec,
     parse_methods_arg,
 )
@@ -222,6 +227,158 @@ class TestFormatProjectionName:
 
     def test_empty_suffix_no_parens(self):
         assert format_projection_name("prot_t5", "pca", 2, "") == "ProtT5 — PCA 2"
+
+    def test_background_label_is_added_to_rhopca_method(self):
+        assert format_projection_name(
+            "prot_t5", "rhopca", 2, background_label="5050_length"
+        ) == "ProtT5 — rhoPCA2:5050_length"
+
+
+# ---------------------------------------------------------------------------
+# Background specifications
+# ---------------------------------------------------------------------------
+
+
+class TestBackgroundSpecs:
+    def test_labeled_background(self):
+        spec = parse_background_spec(
+            "embeddings/non3FTx_5050_lengthmatched.h5:5050_length"
+        )
+
+        assert spec == BackgroundSpec(
+            Path("embeddings/non3FTx_5050_lengthmatched.h5"), "5050_length"
+        )
+
+    def test_unlabeled_background_is_backward_compatible(self):
+        spec = parse_background_spec("embeddings/background.h5")
+
+        assert spec == BackgroundSpec(Path("embeddings/background.h5"))
+        assert spec.projection_label(multiple=False) is None
+        assert spec.projection_label(multiple=True) == "background"
+
+    def test_windows_drive_path_is_not_treated_as_a_label(self):
+        spec = parse_background_spec(r"C:\embeddings\background.h5")
+
+        assert spec == BackgroundSpec(Path(r"C:\embeddings\background.h5"))
+
+    def test_duplicate_effective_labels_are_rejected(self):
+        with pytest.raises(ValueError, match="must be unique"):
+            parse_background_specs(["first.h5:shared", "second.h5:shared"])
+
+    def test_rhopca_runs_once_per_background(self, tmp_path: Path):
+        background_a = tmp_path / "background_a.h5"
+        background_b = tmp_path / "background_b.h5"
+        for path in (background_a, background_b):
+            with h5py.File(path, "w") as handle:
+                handle.create_dataset(
+                    "embeddings", data=np.ones((4, 3), dtype=np.float32)
+                )
+
+        config = PipelineConfig(
+            methods=[MethodSpec("rhopca", 2), MethodSpec("pca", 2)],
+            output_path=tmp_path,
+            backgrounds=parse_background_specs(
+                [f"{background_a}:first", f"{background_b}:second"]
+            ),
+        )
+        calls: list[tuple[str, str | None]] = []
+
+        class FakeBase:
+            config: dict = {}
+            reducers = {"rhopca": object, "pca": object}
+
+            def process_reduction(self, data, method, dims):
+                calls.append((method, self.config.get("background")))
+                return {
+                    "name": "stub",
+                    "dimensions": dims,
+                    "info": {},
+                    "data": np.asarray(data)[:, :dims],
+                }
+
+        pipeline = ReductionPipeline.__new__(ReductionPipeline)
+        pipeline.config = config
+        pipeline.base = FakeBase()
+        embedding = EmbeddingSet(
+            name="prot_t5",
+            data=np.ones((5, 3), dtype=np.float32),
+            headers=[f"P{i}" for i in range(5)],
+        )
+
+        reductions = pipeline._run_reductions([embedding])
+
+        assert [reduction["name"] for reduction in reductions] == [
+            "ProtT5 — rhoPCA2:first",
+            "ProtT5 — rhoPCA2:second",
+            "ProtT5 — PCA 2",
+        ]
+        assert [method for method, _ in calls] == ["rhopca", "rhopca", "pca"]
+
+    def test_projection_cache_is_separate_for_each_background(self, tmp_path: Path):
+        config = PipelineConfig(
+            methods=[MethodSpec("rhopca", 2)],
+            output_path=tmp_path,
+            intermediate_dir=tmp_path,
+            keep_tmp=True,
+        )
+        pipeline = ReductionPipeline.__new__(ReductionPipeline)
+        pipeline.config = config
+
+        first = pipeline._projection_cache_path(
+            "prot_t5", "rhopca2", 2, {"background": "first.h5"}
+        )
+        second = pipeline._projection_cache_path(
+            "prot_t5", "rhopca2", 2, {"background": "second.h5"}
+        )
+
+        assert first != second
+
+
+class TestRobustnessRuns:
+    def test_only_stochastic_reducers_are_repeated_with_requested_seed(
+        self, tmp_path: Path
+    ):
+        config = PipelineConfig(
+            methods=[
+                MethodSpec("umap", 2),
+                MethodSpec("pca", 2),
+                MethodSpec("mds", 2),
+            ],
+            output_path=tmp_path,
+        )
+        calls: list[tuple[str, int]] = []
+
+        class FakeBase:
+            config: dict = {}
+            reducers = {"umap": object, "pca": object, "mds": object}
+
+            def process_reduction(self, data, method, dims):
+                calls.append((method, self.config["random_state"]))
+                return {
+                    "name": "stub",
+                    "dimensions": dims,
+                    "info": {},
+                    "data": np.asarray(data)[:, :dims],
+                }
+
+        pipeline = ReductionPipeline.__new__(ReductionPipeline)
+        pipeline.config = config
+        pipeline.base = FakeBase()
+        embedding = EmbeddingSet(
+            name="prot_t5",
+            data=np.ones((5, 3), dtype=np.float32),
+            headers=[f"P{i}" for i in range(5)],
+        )
+
+        reductions = pipeline._run_reductions(
+            [embedding], stochastic_only=True, random_state=47
+        )
+
+        assert [reduction["name"] for reduction in reductions] == [
+            "ProtT5 — UMAP 2",
+            "ProtT5 — MDS 2",
+        ]
+        assert calls == [("umap", 47), ("mds", 47)]
 
 
 # ---------------------------------------------------------------------------

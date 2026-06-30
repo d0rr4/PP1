@@ -1,0 +1,18 @@
+space	type	label	n_samples	linear_r2	knn_r2	distance_correlation	spearman_dcorr
+Original (1024)	supervised_continuous	length	9962	0.9257	0.7208	0.4893	0.111
+PCA50	supervised_continuous	length	9962	0.7808	0.7301	0.4785	0.1016
+PCA10	supervised_continuous	length	9962	0.5103	0.6916	0.4584	0.1296
+PCA2	supervised_continuous	length	9962	0.0257	-0.0691	0.2149	0.0461
+rhoPCA2	supervised_continuous	length	9962	0.2277	0.1365	0.4044	0.094
+UMAP2	supervised_continuous	length	9962	0.0486	0.2956	0.259	0.0379
+rhoPCA64+UMAP2	supervised_continuous	length	9962	0.0989	0.3221	0.3137	0.0498
+rhoPCA128+UMAP2	supervised_continuous	length	9962	0.0612	0.3033	0.2672	0.0302
+rhoPCA256+UMAP2	supervised_continuous	length	9962	0.0325	0.2808	0.2482	0.0315
+rhoPCA512+UMAP2	supervised_continuous	length	9962	0.0345	0.3173	0.2527	0.0352
+rhoPCA1024+UMAP2	supervised_continuous	length	9962	0.06	0.2947	0.269	0.0374
+t-SNE2	supervised_continuous	length	9962	0.038	0.5657	0.2475	0.0286
+rhoPCA64+t-SNE2	supervised_continuous	length	9962	0.0537	0.559	0.2717	0.0367
+rhoPCA128+t-SNE2	supervised_continuous	length	9962	0.0534	0.5623	0.271	0.0354
+rhoPCA256+t-SNE2	supervised_continuous	length	9962	0.0577	0.5544	0.2786	0.0334
+rhoPCA512+t-SNE2	supervised_continuous	length	9962	0.0586	0.5509	0.2793	0.0342
+rhoPCA1024+t-SNE2	supervised_continuous	length	9962	0.0588	0.5463	0.2795	0.0345

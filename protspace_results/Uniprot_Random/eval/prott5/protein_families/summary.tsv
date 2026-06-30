@@ -1,0 +1,18 @@
+space	type	label	n_samples	knn_acc_mean	silhouette	concordex
+Original (1024)	supervised_categorical	protein_families	1930	0.7634	0.1434	14.1888
+PCA50	supervised_categorical	protein_families	1930	0.6672	0.0485	12.0182
+PCA10	supervised_categorical	protein_families	1930	0.4168	-0.1044	7.3447
+PCA2	supervised_categorical	protein_families	1930	0.1006	-0.4177	2.6864
+rhoPCA2	supervised_categorical	protein_families	1930	0.1054	-0.4142	2.7708
+UMAP2	supervised_categorical	protein_families	1930	0.4624	-0.2966	10.5924
+rhoPCA64+UMAP2	supervised_categorical	protein_families	1930	0.4238	-0.2814	10.2688
+rhoPCA128+UMAP2	supervised_categorical	protein_families	1930	0.4635	-0.2386	11.8965
+rhoPCA256+UMAP2	supervised_categorical	protein_families	1930	0.5078	-0.1853	12.9675
+rhoPCA512+UMAP2	supervised_categorical	protein_families	1930	0.5165	-0.194	13.1393
+rhoPCA1024+UMAP2	supervised_categorical	protein_families	1930	0.5152	-0.1695	12.9491
+t-SNE2	supervised_categorical	protein_families	1930	0.5674	-0.2426	10.5909
+rhoPCA64+t-SNE2	supervised_categorical	protein_families	1930	0.5054	-0.3353	10.0137
+rhoPCA128+t-SNE2	supervised_categorical	protein_families	1930	0.5613	-0.2241	12.1542
+rhoPCA256+t-SNE2	supervised_categorical	protein_families	1930	0.5817	-0.2035	12.7298
+rhoPCA512+t-SNE2	supervised_categorical	protein_families	1930	0.6078	-0.1618	13.4609
+rhoPCA1024+t-SNE2	supervised_categorical	protein_families	1930	0.6086	-0.1676	13.2436

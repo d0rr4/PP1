@@ -73,6 +73,7 @@ protspace prepare -i emb.h5 -m pca2,umap2 -a default --eval --label protein_fami
 | Flag | Description | Default |
 | ---- | ----------- | ------- |
 | `-m, --methods` | DR methods. Repeat the flag or use commas to combine methods (`-m pca2,umap2`); use semicolons to inline parameter overrides for one method (`-m 'umap2:n_neighbors=50;min_dist=0.1'`). See [Overridable parameters](#overridable-parameters-with--m) for the supported keys. Methods: `pca2`, `umap2`, `tsne2`, `pacmap2`, `mds2`, `localmap2`. | `pca2` |
+| `--background PATH[:LABEL]` | Repeatable background HDF5 file for rhoPCA/cPCA. Each contrastive method runs once per background; optional labels appear in projection names. | none |
 | `-s, --similarity` | Also compute sequence similarity DR from FASTA. | off |
 | `--metric` | Distance metric (`euclidean`, `cosine`, `manhattan`). | `euclidean` |
 | `--random-state` | Random seed. | `42` |
@@ -132,6 +133,7 @@ This produces three projections: `ProtT5 — PCA 2`, `ProtT5 — UMAP 2 (n=15)`,
 | ---- | ----------- | ------- |
 | `--eval / --no-eval` | Run evaluation after bundling. Writes plots and `summary.tsv` to `{output}/eval/<embedding_name>/`. | off |
 | `--label` | Repeatable `[categorical|continuous]:COLUMN` specification. Untyped columns are categorical. | `protein_families` |
+| `--robustness INTEGER` | Total seeded runs for stochastic reducers during evaluation. Requires `--eval`; plots report mean ± sample SD. | `1` |
 | `--filter` | Minimum proteins required per categorical class; rarer classes are excluded. | `0` |
 
 #### Output
@@ -160,7 +162,7 @@ When `--eval` is enabled, protspace evaluates each embedding set separately afte
   - Unsupervised: kNN recall, trustworthiness, and continuity, computed once without label filtering
   - Categorical: kNN accuracy, silhouette score, permutation-corrected CONCORDEX (100 label permutations), and up to five-fold stratified cross-validated linear-classifier ROC-AUC and macro F1
   - Neighborhood metrics use `k = 5, 10, 20, 30, 50`
-  - Continuous: five-fold cross-validated linear-regression R2 and distance correlation
+  - Continuous: cross-validated linear-regression R², cross-validated kNN-regression R², distance correlation, and Spearman correlation between pairwise distances
 
 Each evaluated embedding gets:
 
@@ -172,7 +174,7 @@ Each evaluated embedding gets:
 - `silhouette.png`
 - `concordex.png`
 - `linear_classifier_auc.png` and `linear_classifier_f1.png` for categorical labels
-- `linear_r2.png` and `distance_correlation.png` for continuous labels
+- `linear_r2.png`, `knn_r2.png`, `distance_correlation.png`, and `spearman_distance_correlation.png` for continuous labels
 
 With multiple labels, the unsupervised files remain at
 `eval/<embedding_name>/` and each label's supervised files are written below
@@ -251,6 +253,13 @@ Duplicate proteins across same-name inputs are deduplicated if their embeddings 
 Projections are prefixed with the embedding source: `ESM2-650M — PCA 2`, `ProtT5 — UMAP 2`, `MMseqs2 — MDS 2`.
 
 When the same method and dimension count is requested with different inline parameter overrides (a parameter sweep), the differing parameters are appended in parentheses using their abbreviated names — for example, `ProtT5 — UMAP 2 (n=50)` for `umap2:n_neighbors=50` running alongside another `umap2` variant. A plain `umap2` (no overrides) keeps the unsuffixed name. See [Overridable parameters](#overridable-parameters-with--m) for the abbreviation table.
+
+Repeat `--background` to run every contrastive reduction against several
+backgrounds. Use `PATH:LABEL` to identify them in projection names, for example
+`--background embeddings/length_matched.h5:5050_length` produces
+`ProtT5 — rhoPCA2:5050_length`. Unlabeled backgrounds retain the historical
+name when only one is supplied; with several unlabeled backgrounds, file stems
+are used as labels.
 
 ## Model Name Resolution (`-i file.h5:name`)
 

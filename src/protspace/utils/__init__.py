@@ -13,27 +13,25 @@ def get_reducers() -> dict:
     global _REDUCERS
     if _REDUCERS is None:
         from .reducers import (
+            CPCA_NAME,
+            DENSEMAP_NAME,
             LOCALMAP_NAME,
             MDS_NAME,
             PACMAP_NAME,
             PCA_NAME,
+            PHATE_NAME,
+            RHOPCA_NAME,
+            TRIMAP_NAME,
             TSNE_NAME,
             UMAP_NAME,
-            RHOPCA_NAME,
-            DENSEMAP_NAME,
-            TRIMAP_NAME,
-            PHATE_NAME,
-            IRHOPCA_NAME,
-            CPCA_NAME,
             CPCAReducer,
             DensMAPReducer,
-            TrimapReducer,
-            PhateReducer,
-            irhoPCAReducer,
             LocalMAPReducer,
             MDSReducer,
             PaCMAPReducer,
             PCAReducer,
+            PhateReducer,
+            TrimapReducer,
             TSNEReducer,
             UMAPReducer,
             rhoPCAReducer,
@@ -50,7 +48,6 @@ def get_reducers() -> dict:
             DENSEMAP_NAME: DensMAPReducer,
             TRIMAP_NAME: TrimapReducer,
             PHATE_NAME: PhateReducer,
-            IRHOPCA_NAME: irhoPCAReducer,
             CPCA_NAME: CPCAReducer,
         }
     return _REDUCERS
@@ -79,7 +76,6 @@ def __getattr__(name: str):
         "DENSEMAP_NAME",
         "TRIMAP_NAME",
         "PHATE_NAME",
-        "IRHOPCA_NAME",
         "CPCA_NAME",
     }
     if name in _reducer_attrs:
@@ -110,7 +106,6 @@ def __dir__():
         "DENSEMAP_NAME",
         "TRIMAP_NAME",
         "PHATE_NAME",
-        "IRHOPCA_NAME",
         "CPCA_NAME",
     ]
 

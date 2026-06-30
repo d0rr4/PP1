@@ -4,7 +4,7 @@ Import this module freely without triggering numba/pynndescent compilation.
 """
 
 from dataclasses import dataclass, field, fields
-from typing import Literal, get_args, Optional, Any
+from typing import Any, Literal, get_args
 
 # Method name constants
 PCA_NAME = "pca"
@@ -17,10 +17,21 @@ RHOPCA_NAME = "rhopca"
 DENSEMAP_NAME = "densmap"
 TRIMAP_NAME = "trimap"
 PHATE_NAME = "phate"
-IRHOPCA_NAME = "irhopca"
 CPCA_NAME = "cpca"
 
-REDUCER_METHODS = [PCA_NAME, TSNE_NAME, UMAP_NAME, PACMAP_NAME, MDS_NAME, LOCALMAP_NAME, RHOPCA_NAME, DENSEMAP_NAME, TRIMAP_NAME, PHATE_NAME, IRHOPCA_NAME, CPCA_NAME]
+REDUCER_METHODS = [
+    PCA_NAME,
+    TSNE_NAME,
+    UMAP_NAME,
+    PACMAP_NAME,
+    MDS_NAME,
+    LOCALMAP_NAME,
+    RHOPCA_NAME,
+    DENSEMAP_NAME,
+    TRIMAP_NAME,
+    PHATE_NAME,
+    CPCA_NAME,
+]
 
 # Metric types
 METRIC_TYPES = Literal["euclidean", "cosine"]
@@ -52,7 +63,7 @@ class DimensionReductionConfig:
     # change needed to enable rhoPCA50+umap2
     #n_components: int = field(default=2, metadata={"allowed": [2, 3]})
     n_components: int = field(default=2, metadata={"gt": 0})
-    # ^ PCA, t-SNE, UMAP, PaCMAP, MDS, LocalMAP, rhoPCA, irhoPCA
+    # ^ PCA, t-SNE, UMAP, PaCMAP, MDS, LocalMAP, rhoPCA
 
     random_state: int = field(default=42, metadata={"gte": 0})
     # ^ t-SNE, UMAP, PaCMAP, LocalMAP, MDS
@@ -61,7 +72,7 @@ class DimensionReductionConfig:
     # PCA-family parameters
     # ------------------------------------------------------------------
     component_start: int = field(default=1, metadata={"gte": 1})
-    # ^ PCA, rhoPCA, irhoPCA — 1-indexed starting component
+    # ^ PCA, rhoPCA — 1-indexed starting component
 
     # ------------------------------------------------------------------
     # Neighbor-graph / manifold parameters
@@ -153,19 +164,19 @@ class DimensionReductionConfig:
     # ^ MDS — convergence tolerance
 
     # ------------------------------------------------------------------
-    # rhoPCA / irhoPCA / cPCA (contrastive) parameters
+    # rhoPCA / cPCA (contrastive) parameters
     # ------------------------------------------------------------------
     scale_variance: bool = field(default=True)
-    # ^ rhoPCA, irhoPCA, cPCA — whether to scale variance
+    # ^ rhoPCA, cPCA — whether to scale variance
 
     cpca_alpha: float = field(default=None)
     # ^ cPCA — contrast strength α (None = auto-select via spectral gap)
 
     background: str = field(default=None)
-    # ^ rhoPCA, irhoPCA, cPCA — path to background HDF5 file (set by pipeline)
+    # ^ rhoPCA, cPCA — path to background HDF5 file (set by pipeline)
 
     background_matrix: Any = field(default=None)
-    # ^ rhoPCA, irhoPCA, cPCA — loaded background data matrix (set by pipeline)
+    # ^ rhoPCA, cPCA — loaded background data matrix (set by pipeline)
 
     def __post_init__(self):
         """Validate configuration parameters."""

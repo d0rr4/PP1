@@ -41,8 +41,13 @@ pip install protspace
 protspace prepare -i embeddings.h5 -m pca2,umap2 -o output
 
 # From HDF5 embeddings using rhoPCA
-# --background (required if -m rhoPCA2/3 is included): selects the background embedding set
+# --background is repeatable; optional :LABEL suffixes name each projection
 protspace prepare -i embeddings.h5 -m rhopca2,pca2,umap2 --background background_embeddings.h5 -o output
+
+# Run rhoPCA separately against two named backgrounds
+protspace prepare -i embeddings.h5 -m rhopca2,pca2 \
+  --background embeddings/non3FTx_5050_lengthmatched.h5:5050_length \
+  --background embeddings/random.h5:random -o output
 
 # From FASTA (auto-embeds via Biocentral API)
 protspace prepare -i sequences.fasta -e prot_t5 -m pca2 -o output
@@ -75,13 +80,30 @@ protspace prepare -i embeddings.h5 -m pca2,umap2 --eval \
   --label continuous:sequence_length -o output
 ```
 
+### Robustness evaluation for stochastic reducers
+
+Use `--robustness N` together with `--eval` to run t-SNE, UMAP, densMAP,
+PaCMAP, LocalMAP, MDS, TriMAP, and PHATE `N` times with consecutive random
+seeds. The requested seed is used for the first run and incremented for each
+additional run. Deterministic reducers still run once, and only the first
+projection is included in the output bundle.
+
+```bash
+protspace prepare -i embeddings.h5 -m umap2,tsne2,pca2 --eval \
+  --robustness 10 --label categorical:protein_families -o output
+```
+
+Evaluation plots show the mean with sample-standard-deviation error bars.
+Summary heatmaps annotate repeated reducers as `mean ± SD`, and `summary.tsv`
+stores the number of runs plus a separate `*_std` column for every metric.
+
 Categorical labels use kNN accuracy, silhouette score, and the
 permutation-corrected CONCORDEX coefficient (100 label permutations), plus
 up to five-fold stratified cross-validated linear-classifier ROC-AUC and macro F1.
-Neighborhood metrics are evaluated at `k=5,10,20,30,50`.
-Continuous
-labels use deterministic five-fold cross-validated linear-regression R2 and
-distance correlation; values near zero indicate little predictive signal or
+Neighborhood metrics are evaluated at `k=5,10,20,30,50`. Continuous labels
+use cross-validated linear-regression R² and kNN-regression R², distance
+correlation, and Spearman correlation between pairwise embedding distances and
+target differences. Values near zero indicate little predictive signal or
 dependence. All metrics share a deterministic 2,000-protein cap.
 Unsupervised outputs are written once to `eval/<embedding>/`; with multiple
 labels, supervised outputs are separated into `eval/<embedding>/<label>/`.

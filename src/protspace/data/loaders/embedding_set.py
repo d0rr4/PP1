@@ -39,7 +39,6 @@ METHOD_DISPLAY_NAMES: dict[str, str] = {
     "densmap": "densMAP",
     "trimap": "TriMAP",
     "phate": "PHATE",
-    "irhopca": "irhoPCA",
     "cpca": "cPCA",
 }
 
@@ -76,7 +75,11 @@ def format_param_suffix(overrides: dict[str, int | float | str]) -> str:
 
 
 def format_projection_name(
-    source: str, method: str, dims: int, param_suffix: str = ""
+    source: str,
+    method: str,
+    dims: int,
+    param_suffix: str = "",
+    background_label: str | None = None,
 ) -> str:
     """Format a human-readable projection name.
 
@@ -85,13 +88,18 @@ def format_projection_name(
         ("esm2_650m", "umap", 2, "n=50, d=0.1") → "ESM2-650M — UMAP 2 (n=50, d=0.1)"
     """
     source_display = MODEL_DISPLAY_NAMES.get(source, source)
-    
+
     if "+" in method:
         def _display_part(part: str) -> str:
             base = "".join(filter(str.isalpha, part))
             digits = "".join(filter(str.isdigit, part))
             display_base = METHOD_DISPLAY_NAMES.get(base, base.upper() if base else part.upper())
-            return f"{display_base}{digits}"
+            label = (
+                f":{background_label}"
+                if background_label and base in {"rhopca", "cpca"}
+                else ""
+            )
+            return f"{display_base}{digits}{label}"
 
         method_display = " + ".join(_display_part(part) for part in method.split("+"))
         name = f"{source_display} — {method_display}"
@@ -100,7 +108,10 @@ def format_projection_name(
         digits = "".join(filter(str.isdigit, method))
         method_display = METHOD_DISPLAY_NAMES.get(base or method, (base or method).upper())
         dim_str = digits if digits else str(dims)
-        name = f"{source_display} — {method_display} {dim_str}"
+        if background_label and base in {"rhopca", "cpca"}:
+            name = f"{source_display} — {method_display}{dim_str}:{background_label}"
+        else:
+            name = f"{source_display} — {method_display} {dim_str}"
     if param_suffix:
         name += f" ({param_suffix})"
     return name

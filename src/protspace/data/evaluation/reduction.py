@@ -16,11 +16,12 @@ import pandas as pd
 from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from scipy.spatial.distance import pdist, squareform
+from scipy.stats import spearmanr
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import f1_score, r2_score, roc_auc_score, silhouette_score
 from sklearn.model_selection import KFold, StratifiedKFold, cross_val_predict
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler, normalize
 
@@ -53,6 +54,7 @@ LINESTYLES_GT = {"Full": "-"}
 # Hard cap shared by all metrics. Distance correlation has O(n^2) cost, so a
 # single cap keeps every reported sample size comparable and memory bounded.
 _MAX_DIST_SAMPLES = 10_000
+_KNN_REGRESSION_K = 5
 
 
 @dataclass(frozen=True)
@@ -318,19 +320,69 @@ def _build_projection_entries(
     entries: list[tuple[str, dict[str, Any]]] = []
     seen: set[str] = set()
     for reduction in reductions:
-        label = _projection_label(reduction["name"], embedding_name)
-        if label in seen:
+        robustness_group = reduction.get("robustness_group")
+        label = _projection_label(
+            str(robustness_group or reduction["name"]), embedding_name
+        )
+        if not robustness_group and label in seen:
             suffix = 2
             while f"{label} [{suffix}]" in seen:
                 suffix += 1
             label = f"{label} [{suffix}]"
         seen.add(label)
         entries.append((label, reduction))
+    unique_labels = list(dict.fromkeys(label for label, _ in entries))
     colors = {
         label: PROJECTION_COLORS[i % len(PROJECTION_COLORS)]
-        for i, (label, _) in enumerate(entries)
+        for i, label in enumerate(unique_labels)
     }
     return entries, colors
+
+
+def _mean_and_sample_std(values: list[Any]) -> tuple[np.ndarray, np.ndarray]:
+    """Return NaN-aware means and sample SDs along the run axis."""
+    array = np.asarray(values, dtype=float)
+    counts = np.sum(np.isfinite(array), axis=0)
+    mean = np.full(np.shape(counts), np.nan, dtype=float)
+    np.divide(
+        np.nansum(array, axis=0),
+        counts,
+        out=mean,
+        where=counts > 0,
+    )
+    squared = np.nansum((array - mean) ** 2, axis=0)
+    std = np.full(np.shape(mean), np.nan, dtype=float)
+    np.divide(
+        squared,
+        counts - 1,
+        out=std,
+        where=counts > 1,
+    )
+    return np.asarray(mean), np.sqrt(std)
+
+
+def _aggregate_scalar_runs(
+    values: dict[str, list[float]],
+) -> tuple[dict[str, float], dict[str, float]]:
+    means: dict[str, float] = {}
+    stds: dict[str, float] = {}
+    for space, runs in values.items():
+        mean, std = _mean_and_sample_std(runs)
+        means[space] = float(mean)
+        stds[space] = float(std)
+    return means, stds
+
+
+def _aggregate_vector_runs(
+    values: dict[str, list[list[float]]],
+) -> tuple[dict[str, list[float]], dict[str, list[float]]]:
+    means: dict[str, list[float]] = {}
+    stds: dict[str, list[float]] = {}
+    for space, runs in values.items():
+        mean, std = _mean_and_sample_std(runs)
+        means[space] = mean.tolist()
+        stds[space] = std.tolist()
+    return means, stds
 
 
 def _evaluate_unsupervised(
@@ -355,7 +407,7 @@ def _evaluate_unsupervised(
     projection_entries, projection_colors = _build_projection_entries(
         reductions, emb_set.name
     )
-    unsupervised: dict[str, dict[str, Any]] = {}
+    run_metrics: dict[str, list[dict[str, Any]]] = {}
     for proj_label, reduction in projection_entries:
         dims = 3 if reduction["dimensions"] == 3 else 2
         coords = reduction["data"][indices, :dims].astype(np.float32, copy=False)
@@ -371,13 +423,30 @@ def _evaluate_unsupervised(
             continuities.append(
                 _continuity_at_k(proj_neighbors, full_neighbors, k, n_eval)
             )
-        unsupervised[f"{proj_label} - Full"] = {
+        run_metrics.setdefault(f"{proj_label} - Full", []).append({
             "recall": recalls,
             "trust": trusts,
             "cont": continuities,
             "projection_label": proj_label,
             "gt_label": "Full",
+        })
+
+    unsupervised: dict[str, dict[str, Any]] = {}
+    for line_label, runs in run_metrics.items():
+        aggregated: dict[str, Any] = {
+            "projection_label": runs[0]["projection_label"],
+            "gt_label": runs[0]["gt_label"],
+            "robustness_runs": len(runs),
         }
+        for metric in ("recall", "trust", "cont"):
+            mean, std = _mean_and_sample_std([run[metric] for run in runs])
+            aggregated[metric] = mean.tolist()
+            aggregated[f"{metric}_std"] = std.tolist()
+            run_means = [float(np.mean(run[metric])) for run in runs]
+            summary_mean, summary_std = _mean_and_sample_std(run_means)
+            aggregated[f"{metric}_summary_mean"] = float(summary_mean)
+            aggregated[f"{metric}_summary_std"] = float(summary_std)
+        unsupervised[line_label] = aggregated
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _plot_unsupervised_lines(
@@ -393,7 +462,7 @@ def _supervised_spaces(
     emb_set: EmbeddingSet,
     reductions: list[dict[str, Any]],
     indices: list[int],
-) -> tuple[dict[str, np.ndarray], dict[str, str], str, str, str]:
+) -> tuple[list[tuple[str, np.ndarray]], dict[str, str], str, str, str]:
     embeddings = emb_set.data[indices].astype(np.float32, copy=False)
     n_eval = len(indices)
     pca_components = min(DEFAULT_PCA_COMPONENTS, embeddings.shape[1], n_eval - 1)
@@ -410,11 +479,20 @@ def _supervised_spaces(
     full_name = f"Original ({embeddings.shape[1]})"
     pca_name = f"PCA{pca_components}"
     pca10_name = f"PCA{pca10_components}"
-    spaces = {full_name: embeddings, pca_name: emb_pca, pca10_name: emb_pca10}
+    spaces = [
+        (full_name, embeddings),
+        (pca_name, emb_pca),
+        (pca10_name, emb_pca10),
+    ]
     entries, colors = _build_projection_entries(reductions, emb_set.name)
     for label, reduction in entries:
         dims = 3 if reduction["dimensions"] == 3 else 2
-        spaces[label] = reduction["data"][indices, :dims].astype(np.float32, copy=False)
+        spaces.append(
+            (
+                label,
+                reduction["data"][indices, :dims].astype(np.float32, copy=False),
+            )
+        )
     return spaces, colors, full_name, pca_name, pca10_name
 
 
@@ -500,31 +578,44 @@ def _evaluate_categorical_label(
         emb_set, reductions, indices
     )
 
-    accuracies: dict[str, list[float]] = {}
-    silhouettes: dict[str, float] = {}
-    concordex: dict[str, list[float]] = {}
-    linear_auc: dict[str, float] = {}
-    linear_f1: dict[str, float] = {}
+    accuracy_runs: dict[str, list[list[float]]] = {}
+    silhouette_runs: dict[str, list[float]] = {}
+    concordex_runs: dict[str, list[list[float]]] = {}
+    linear_auc_runs: dict[str, list[float]] = {}
+    linear_f1_runs: dict[str, list[float]] = {}
     classifier_splits = _classification_splits(labels_int)
     classifier_folds = len(classifier_splits) if classifier_splits else 0
-    for space, values in spaces.items():
+    for space, values in spaces:
         metric = "cosine" if space == full_name else "euclidean"
         neighbor_values = normalize(values, norm="l2") if metric == "cosine" else values
         neighbors = _neighbors(neighbor_values, k_stored, metric)
-        accuracies[space] = [
-            _knn_accuracy_at_k(neighbors, labels_int, k) for k in k_values
-        ]
-        silhouettes[space] = _safe_silhouette(values, labels_int, metric=metric)
-        concordex[space] = _concordex_scores(neighbors, labels_int, k_values)
-        linear_auc[space], linear_f1[space] = _linear_classifier_scores(
+        accuracy_runs.setdefault(space, []).append(
+            [_knn_accuracy_at_k(neighbors, labels_int, k) for k in k_values]
+        )
+        silhouette_runs.setdefault(space, []).append(
+            _safe_silhouette(values, labels_int, metric=metric)
+        )
+        concordex_runs.setdefault(space, []).append(
+            _concordex_scores(neighbors, labels_int, k_values)
+        )
+        auc, f1 = _linear_classifier_scores(
             values, labels_int, classifier_splits
         )
+        linear_auc_runs.setdefault(space, []).append(auc)
+        linear_f1_runs.setdefault(space, []).append(f1)
+
+    accuracies, accuracy_stds = _aggregate_vector_runs(accuracy_runs)
+    silhouettes, silhouette_stds = _aggregate_scalar_runs(silhouette_runs)
+    concordex, concordex_stds = _aggregate_vector_runs(concordex_runs)
+    linear_auc, linear_auc_stds = _aggregate_scalar_runs(linear_auc_runs)
+    linear_f1, linear_f1_stds = _aggregate_scalar_runs(linear_f1_runs)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _plot_knn_accuracy(
         out_dir=out_dir,
         k_values=k_values,
         knn_accuracy=accuracies,
+        knn_accuracy_std=accuracy_stds,
         projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
@@ -534,6 +625,7 @@ def _evaluate_categorical_label(
     _plot_silhouette(
         out_dir=out_dir,
         silhouette=silhouettes,
+        silhouette_std=silhouette_stds,
         projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
@@ -544,6 +636,7 @@ def _evaluate_categorical_label(
         out_dir=out_dir,
         k_values=k_values,
         concordex=concordex,
+        concordex_std=concordex_stds,
         projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
@@ -554,6 +647,8 @@ def _evaluate_categorical_label(
         out_dir=out_dir,
         auc_scores=linear_auc,
         f1_scores=linear_f1,
+        auc_stds=linear_auc_stds,
+        f1_stds=linear_f1_stds,
         projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
@@ -568,13 +663,33 @@ def _evaluate_categorical_label(
             "n_samples": n_eval,
             "k_values": ",".join(str(k) for k in k_values),
             "classifier_folds": classifier_folds,
+            "robustness_runs": len(accuracy_runs[space]),
             "knn_acc_mean": round(float(np.mean(accuracies[space])), 4),
+            "knn_acc_mean_std": round(
+                float(
+                    _mean_and_sample_std(
+                        [np.mean(run) for run in accuracy_runs[space]]
+                    )[1]
+                ),
+                4,
+            ),
             "silhouette": round(float(silhouettes[space]), 4),
+            "silhouette_std": round(float(silhouette_stds[space]), 4),
             "concordex": round(float(np.mean(concordex[space])), 4),
+            "concordex_std": round(
+                float(
+                    _mean_and_sample_std(
+                        [np.mean(run) for run in concordex_runs[space]]
+                    )[1]
+                ),
+                4,
+            ),
             "linear_auc": round(float(linear_auc[space]), 4),
+            "linear_auc_std": round(float(linear_auc_stds[space]), 4),
             "linear_f1_macro": round(float(linear_f1[space]), 4),
+            "linear_f1_macro_std": round(float(linear_f1_stds[space]), 4),
         }
-        for space in spaces
+        for space in accuracy_runs
     ]
 
 
@@ -634,6 +749,56 @@ def _linear_classifier_scores(
     return float(auc), float(f1)
 
 
+def _regression_splits(n_samples: int) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Create deterministic shared folds for continuous predictive metrics."""
+    splitter = KFold(
+        n_splits=min(5, n_samples),
+        shuffle=True,
+        random_state=42,
+    )
+    return list(splitter.split(np.zeros(n_samples)))
+
+
+def _continuous_space_scores(
+    features: np.ndarray,
+    geometry_features: np.ndarray,
+    targets: np.ndarray,
+    splits: list[tuple[np.ndarray, np.ndarray]],
+    knn_k: int,
+) -> tuple[float, float, float, float]:
+    """Compute the four continuous-label metrics for one embedding space."""
+    linear_model = make_pipeline(StandardScaler(), LinearRegression())
+    linear_predictions = cross_val_predict(
+        linear_model,
+        features,
+        targets,
+        cv=splits,
+    )
+    linear_r2 = r2_score(targets, linear_predictions)
+
+    knn_model = KNeighborsRegressor(
+        n_neighbors=knn_k,
+        metric="euclidean",
+        algorithm="brute",
+        n_jobs=-1,
+    )
+    knn_predictions = cross_val_predict(
+        knn_model,
+        geometry_features,
+        targets,
+        cv=splits,
+    )
+    knn_r2 = r2_score(targets, knn_predictions)
+    distance_correlation = _distance_correlation(geometry_features, targets)
+    spearman_distance = _spearman_dist_correlation(geometry_features, targets)
+    return (
+        float(linear_r2),
+        float(knn_r2),
+        distance_correlation,
+        spearman_distance,
+    )
+
+
 def _evaluate_continuous_label(
     *,
     emb_set: EmbeddingSet,
@@ -657,19 +822,51 @@ def _evaluate_continuous_label(
     spaces, colors, full_name, pca_name, pca10_name = _supervised_spaces(
         emb_set, reductions, indices
     )
-    folds = KFold(n_splits=min(5, len(targets)), shuffle=True, random_state=42)
-    r2_scores: dict[str, float] = {}
-    distance_correlations: dict[str, float] = {}
-    for space, values in spaces.items():
-        predictions = cross_val_predict(LinearRegression(), values, targets, cv=folds)
-        r2_scores[space] = float(r2_score(targets, predictions))
-        distance_correlations[space] = _distance_correlation(values, targets)
+    folds = _regression_splits(len(targets))
+    knn_k = min(_KNN_REGRESSION_K, min(len(train) for train, _ in folds))
+    r2_runs: dict[str, list[float]] = {}
+    knn_r2_runs: dict[str, list[float]] = {}
+    distance_correlation_runs: dict[str, list[float]] = {}
+    spearman_dcorr_runs: dict[str, list[float]] = {}
+    for space, values in spaces:
+        # Normalize the full embedding so euclidean distance ≡ cosine, matching
+        # the metric used by the unsupervised and categorical evaluations.
+        norm_values = normalize(values, norm="l2") if space == full_name else values
+
+        linear_r2, knn_r2, distance_correlation, spearman_distance = (
+            _continuous_space_scores(
+            values,
+            norm_values,
+            targets,
+            folds,
+            knn_k,
+            )
+        )
+        r2_runs.setdefault(space, []).append(linear_r2)
+        knn_r2_runs.setdefault(space, []).append(knn_r2)
+        distance_correlation_runs.setdefault(space, []).append(distance_correlation)
+        spearman_dcorr_runs.setdefault(space, []).append(spearman_distance)
+
+    r2_scores, r2_stds = _aggregate_scalar_runs(r2_runs)
+    knn_r2_scores, knn_r2_stds = _aggregate_scalar_runs(knn_r2_runs)
+    distance_correlations, distance_correlation_stds = _aggregate_scalar_runs(
+        distance_correlation_runs
+    )
+    spearman_dcorr, spearman_dcorr_stds = _aggregate_scalar_runs(
+        spearman_dcorr_runs
+    )
 
     out_dir.mkdir(parents=True, exist_ok=True)
     _plot_continuous_metrics(
         out_dir=out_dir,
         r2_scores=r2_scores,
+        r2_stds=r2_stds,
+        knn_r2_scores=knn_r2_scores,
+        knn_r2_stds=knn_r2_stds,
         distance_correlations=distance_correlations,
+        distance_correlation_stds=distance_correlation_stds,
+        spearman_dcorr=spearman_dcorr,
+        spearman_dcorr_stds=spearman_dcorr_stds,
         projection_colors=colors,
         full_name=full_name,
         pca_name=pca_name,
@@ -690,10 +887,21 @@ def _evaluate_continuous_label(
             "type": "supervised_continuous",
             "label": label_column,
             "n_samples": len(indices),
+            "regression_folds": len(folds),
+            "knn_k": knn_k,
+            "robustness_runs": len(r2_runs[space]),
             "linear_r2": round(r2_scores[space], 4),
+            "linear_r2_std": round(r2_stds[space], 4),
+            "knn_r2": round(knn_r2_scores[space], 4),
+            "knn_r2_std": round(knn_r2_stds[space], 4),
             "distance_correlation": round(distance_correlations[space], 4),
+            "distance_correlation_std": round(
+                distance_correlation_stds[space], 4
+            ),
+            "spearman_dcorr": round(spearman_dcorr[space], 4),
+            "spearman_dcorr_std": round(spearman_dcorr_stds[space], 4),
         }
-        for space in spaces
+        for space in r2_runs
     ]
 
 
@@ -720,6 +928,19 @@ def _distance_correlation(features: np.ndarray, target: np.ndarray) -> float:
     if denominator == 0:
         return float("nan")
     return float(np.clip(np.sqrt(covariance_sq / denominator), 0.0, 1.0))
+
+
+def _spearman_dist_correlation(features: np.ndarray, target: np.ndarray) -> float:
+    """Spearman rank correlation between pairwise feature distances and absolute target differences.
+
+    A model-free alternative to distance correlation: tests whether points that
+    are close in feature space also tend to have similar target values, using
+    rank correlation so monotone non-linearities don't inflate the score.
+    """
+    feat_dists = pdist(features, metric="euclidean")
+    target_diffs = pdist(target[:, None], metric="cityblock")
+    rho, _ = spearmanr(feat_dists, target_diffs)
+    return float(np.clip(rho, -1.0, 1.0))
 
 
 # ---------------------------------------------------------------------------
@@ -1037,9 +1258,13 @@ def _write_summary(
             {
                 "space": space,
                 "type": "unsupervised",
-                "recall_mean": round(float(np.mean(metrics["recall"])), 4),
-                "trust_mean": round(float(np.mean(metrics["trust"])), 4),
-                "cont_mean": round(float(np.mean(metrics["cont"])), 4),
+                "robustness_runs": metrics.get("robustness_runs", 1),
+                "recall_mean": round(metrics["recall_summary_mean"], 4),
+                "recall_mean_std": round(metrics["recall_summary_std"], 4),
+                "trust_mean": round(metrics["trust_summary_mean"], 4),
+                "trust_mean_std": round(metrics["trust_summary_std"], 4),
+                "cont_mean": round(metrics["cont_summary_mean"], 4),
+                "cont_mean_std": round(metrics["cont_summary_std"], 4),
             }
         )
     rows.extend(supervised or [])
@@ -1065,8 +1290,10 @@ _CATEGORICAL_COL_LABELS: dict[str, str] = {
     "linear_f1_macro": "Linear Classifier\nMacro-F1",
 }
 _CONTINUOUS_COL_LABELS: dict[str, str] = {
-    "linear_r2": "Linear Regression\nCV R2",
+    "linear_r2": "Linear\nR²",
+    "knn_r2": f"kNN\nR² (k={_KNN_REGRESSION_K})",
     "distance_correlation": "Distance\nCorrelation",
+    "spearman_dcorr": "Spearman\nDist. Corr.",
 }
 
 
@@ -1108,12 +1335,25 @@ def _plot_summary_heatmaps(
     df_uns["space"] = df_uns["space"].str.replace(" - Full", "", regex=False)
     uns_cols = [c for c in _UNSUPERVISED_COL_LABELS if c in df_uns.columns]
     if not df_uns.empty and uns_cols:
-        df_uns = df_uns[["space"] + uns_cols].set_index("space")
+        uns_indexed = df_uns.set_index("space")
+        std_uns = pd.DataFrame(
+            {
+                _UNSUPERVISED_COL_LABELS[column]: pd.to_numeric(
+                    uns_indexed.get(f"{column}_std"), errors="coerce"
+                )
+                for column in uns_cols
+            },
+            index=uns_indexed.index,
+        )
+        df_uns = uns_indexed[uns_cols]
         df_uns.columns = [_UNSUPERVISED_COL_LABELS[c] for c in uns_cols]
         df_uns = df_uns.apply(pd.to_numeric, errors="coerce")
         subtitle = f"Means computed over {k_range_str}{sample_note}"
+        if int(pd.to_numeric(uns_indexed["robustness_runs"]).max()) > 1:
+            subtitle += " · mean ± sample SD across runs"
         _render_heatmap(
             data=df_uns,
+            std_data=std_uns,
             title="Unsupervised DR Evaluation",
             subtitle=subtitle,
             out_path=out_dir / "heatmap_unsupervised.png",
@@ -1139,13 +1379,39 @@ def _plot_summary_heatmaps(
             if "classifier_folds" in df_sup.columns
             else pd.Series(dtype=int)
         )
-        df_sup = df_sup[["space"] + sup_cols].set_index("space")
+        stored_regression_folds = (
+            df_sup["regression_folds"].dropna()
+            if "regression_folds" in df_sup.columns
+            else pd.Series(dtype=int)
+        )
+        stored_knn_k = (
+            df_sup["knn_k"].dropna()
+            if "knn_k" in df_sup.columns
+            else pd.Series(dtype=int)
+        )
+        sup_indexed = df_sup.set_index("space")
+        std_sup = pd.DataFrame(
+            {
+                column_labels[column]: pd.to_numeric(
+                    sup_indexed.get(f"{column}_std"), errors="coerce"
+                )
+                for column in sup_cols
+            },
+            index=sup_indexed.index,
+        )
+        df_sup = sup_indexed[sup_cols]
         df_sup.columns = [column_labels[c] for c in sup_cols]
         df_sup = df_sup.apply(pd.to_numeric, errors="coerce")
         if supervised_kind == "continuous":
+            folds = (
+                int(stored_regression_folds.iloc[0])
+                if not stored_regression_folds.empty
+                else 0
+            )
+            knn_k = int(stored_knn_k.iloc[0]) if not stored_knn_k.empty else 0
             subtitle = (
-                "5-fold cross-validated R2; "
-                "lower values indicate less linear signal"
+                f"{folds}-fold CV for linear/kNN R2 (kNN k={knn_k}); "
+                "dCor and Spearman correlation of pairwise distances"
             )
         else:
             used_k = str(stored_k.iloc[0]).split(",") if not stored_k.empty else []
@@ -1155,19 +1421,23 @@ def _plot_summary_heatmaps(
                 f"kNN Accuracy and CONCORDEX means over {categorical_k}; "
                 f"linear classifier uses {folds}-fold CV"
             )
+        if int(pd.to_numeric(sup_indexed["robustness_runs"]).max()) > 1:
+            subtitle += " · mean ± sample SD across runs"
         _render_heatmap(
             data=df_sup,
+            std_data=std_sup,
             title=f"Supervised DR Evaluation  ·  {label_column}",
             subtitle=subtitle,
             out_path=out_dir / "heatmap_supervised.png",
             cmap="YlOrRd",
-            lower_is_better=supervised_kind == "continuous",
+            lower_is_better=False,
         )
 
 
 def _render_heatmap(
     *,
     data: pd.DataFrame,
+    std_data: pd.DataFrame | None = None,
     title: str,
     subtitle: str,
     out_path: Path,
@@ -1190,7 +1460,10 @@ def _render_heatmap(
     n_rows, n_cols = data.shape
 
     # Column-wise min-max normalisation — NaN cells stay NaN (rendered grey).
-    norm_data = (data - data.min()) / (data.max() - data.min())
+    column_ranges = data.max() - data.min()
+    norm_data = (data - data.min()) / column_ranges.replace(0.0, np.nan)
+    for column in data.columns[column_ranges == 0.0]:
+        norm_data.loc[data[column].notna(), column] = 0.5
     if lower_is_better:
         norm_data = 1.0 - norm_data
 
@@ -1236,6 +1509,10 @@ def _render_heatmap(
                 luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
                 text_color = "white" if luminance < 0.45 else "#1a1a1a"
                 cell_text = f"{raw_val:.2f}"
+                if std_data is not None:
+                    std_val = std_data.iloc[row_idx, col_idx]
+                    if pd.notna(std_val):
+                        cell_text += f"\n± {std_val:.2f}"
 
             rect = plt.Rectangle(
                 (col_idx, n_rows - row_idx - 1),
@@ -1358,14 +1635,18 @@ def _plot_unsupervised_lines(
     def save_line_plot(metric_key: str, title: str, filename: str) -> None:
         fig, ax = plt.subplots(figsize=(10, 5))
         for line_label, metrics in unsupervised.items():
-            ax.plot(
+            std_values = np.asarray(metrics[f"{metric_key}_std"], dtype=float)
+            yerr = np.nan_to_num(std_values, nan=0.0)
+            ax.errorbar(
                 k_values,
                 metrics[metric_key],
+                yerr=yerr,
                 color=get_line_color(metrics["projection_label"]),
                 linestyle=get_linestyle(metrics["gt_label"]),
                 marker="o",
                 markersize=4,
                 linewidth=1.8,
+                capsize=3,
                 label=line_label,
             )
         style_axis(ax, title)
@@ -1382,14 +1663,20 @@ def _plot_continuous_metrics(
     *,
     out_dir: Path,
     r2_scores: dict[str, float],
+    r2_stds: dict[str, float],
+    knn_r2_scores: dict[str, float],
+    knn_r2_stds: dict[str, float],
     distance_correlations: dict[str, float],
+    distance_correlation_stds: dict[str, float],
+    spearman_dcorr: dict[str, float],
+    spearman_dcorr_stds: dict[str, float],
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
     pca10_name: str,
     label_column: str,
 ) -> None:
-    """Plot linear predictive power and global dependence by space."""
+    """Plot linear/kNN predictive power and pairwise distance correlations by space."""
 
     def color(space: str) -> str:
         if space == full_name:
@@ -1401,13 +1688,20 @@ def _plot_continuous_metrics(
         return projection_colors.get(space, "#333333")
 
     def plot_metric(
-        values: dict[str, float], title: str, ylabel: str, filename: str
+        values: dict[str, float],
+        stds: dict[str, float],
+        title: str,
+        ylabel: str,
+        filename: str,
     ) -> None:
         spaces = list(values)
+        errors = [0.0 if np.isnan(stds[space]) else stds[space] for space in spaces]
         fig, ax = plt.subplots(figsize=(10, 5))
         bars = ax.bar(
             spaces,
             list(values.values()),
+            yerr=errors,
+            capsize=4,
             color=[color(space) for space in spaces],
             edgecolor="white",
             width=0.5,
@@ -1427,15 +1721,31 @@ def _plot_continuous_metrics(
 
     plot_metric(
         r2_scores,
+        r2_stds,
         "Linear Regression Predictive Power",
-        "Cross-validated R2",
+        "Cross-validated R²",
         "linear_r2.png",
     )
     plot_metric(
+        knn_r2_scores,
+        knn_r2_stds,
+        f"kNN Regression Predictive Power (k={_KNN_REGRESSION_K})",
+        "Cross-validated R²",
+        "knn_r2.png",
+    )
+    plot_metric(
         distance_correlations,
+        distance_correlation_stds,
         "Distance Correlation",
         "Distance correlation",
         "distance_correlation.png",
+    )
+    plot_metric(
+        spearman_dcorr,
+        spearman_dcorr_stds,
+        "Spearman Distance Correlation",
+        "Spearman ρ",
+        "spearman_distance_correlation.png",
     )
 
 
@@ -1444,6 +1754,8 @@ def _plot_categorical_classifier_metrics(
     out_dir: Path,
     auc_scores: dict[str, float],
     f1_scores: dict[str, float],
+    auc_stds: dict[str, float],
+    f1_stds: dict[str, float],
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
@@ -1463,16 +1775,20 @@ def _plot_categorical_classifier_metrics(
 
     def plot_metric(
         values: dict[str, float],
+        stds: dict[str, float],
         title: str,
         ylabel: str,
         filename: str,
         baseline: float | None = None,
     ) -> None:
         spaces = list(values)
+        errors = [0.0 if np.isnan(stds[space]) else stds[space] for space in spaces]
         fig, ax = plt.subplots(figsize=(10, 5))
         bars = ax.bar(
             spaces,
             list(values.values()),
+            yerr=errors,
+            capsize=4,
             color=[color(space) for space in spaces],
             edgecolor="white",
             width=0.5,
@@ -1500,6 +1816,7 @@ def _plot_categorical_classifier_metrics(
 
     plot_metric(
         auc_scores,
+        auc_stds,
         "Linear Classifier ROC-AUC",
         "Cross-validated ROC-AUC",
         "linear_classifier_auc.png",
@@ -1507,6 +1824,7 @@ def _plot_categorical_classifier_metrics(
     )
     plot_metric(
         f1_scores,
+        f1_stds,
         "Linear Classifier Macro-F1",
         "Cross-validated Macro-F1",
         "linear_classifier_f1.png",
@@ -1518,6 +1836,7 @@ def _plot_knn_accuracy(
     out_dir: Path,
     k_values: list[int],
     knn_accuracy: dict[str, list[float]],
+    knn_accuracy_std: dict[str, list[float]],
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
@@ -1535,13 +1854,15 @@ def _plot_knn_accuracy(
 
     fig, ax = plt.subplots(figsize=(10, 5))
     for space, acc_values in knn_accuracy.items():
-        ax.plot(
+        ax.errorbar(
             k_values,
             acc_values,
+            yerr=np.nan_to_num(knn_accuracy_std[space], nan=0.0),
             color=get_space_color(space),
             marker="o",
             markersize=4,
             linewidth=1.8,
+            capsize=3,
             label=space,
         )
     ax.set_title(f"kNN Accuracy ({label_column})", fontsize=13, fontweight="bold")
@@ -1561,6 +1882,7 @@ def _plot_silhouette(
     *,
     out_dir: Path,
     silhouette: dict[str, float],
+    silhouette_std: dict[str, float],
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
@@ -1578,11 +1900,17 @@ def _plot_silhouette(
 
     spaces = list(silhouette.keys())
     values = list(silhouette.values())
+    errors = [
+        0.0 if np.isnan(silhouette_std[space]) else silhouette_std[space]
+        for space in spaces
+    ]
 
     fig, ax = plt.subplots(figsize=(10, 5))
     bars = ax.bar(
         spaces,
         values,
+        yerr=errors,
+        capsize=4,
         color=[get_space_color(space) for space in spaces],
         edgecolor="white",
         width=0.5,
@@ -1606,6 +1934,7 @@ def _plot_concordex(
     out_dir: Path,
     k_values: list[int],
     concordex: dict[str, list[float]],
+    concordex_std: dict[str, list[float]],
     projection_colors: dict[str, str],
     full_name: str,
     pca_name: str,
@@ -1629,13 +1958,15 @@ def _plot_concordex(
 
     fig, ax = plt.subplots(figsize=(10, 5))
     for space, scores in concordex.items():
-        ax.plot(
+        ax.errorbar(
             k_values,
             scores,
+            yerr=np.nan_to_num(concordex_std[space], nan=0.0),
             color=get_space_color(space),
             marker="o",
             markersize=4,
             linewidth=1.8,
+            capsize=3,
             label=space,
         )
     ax.axhline(

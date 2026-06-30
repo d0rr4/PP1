@@ -11,12 +11,15 @@ from protspace.data.evaluation.reduction import (
     DEFAULT_K_VALUES,
     _classification_splits,
     _concordex_score,
+    _continuous_space_scores,
     _distance_correlation,
     _linear_classifier_scores,
     _neighborhood_consolidation_matrix,
     _parse_label_specs,
     _prepare_labels_lookup,
     _raw_concordex_coefficient,
+    _regression_splits,
+    _spearman_dist_correlation,
     run_reduction_evaluation,
 )
 from protspace.data.loaders import EmbeddingSet
@@ -68,6 +71,35 @@ def test_distance_correlation_detects_deterministic_dependence():
     values = np.arange(20, dtype=float)
 
     score = _distance_correlation(values[:, None], values)
+
+    assert score == pytest.approx(1.0)
+
+
+def test_continuous_metrics_detect_predictive_and_geometric_signal():
+    targets = np.linspace(0.0, 1.0, 100)
+    features = targets[:, None]
+    splits = _regression_splits(len(targets))
+
+    linear_r2, knn_r2, distance_corr, spearman_corr = (
+        _continuous_space_scores(
+            features,
+            features,
+            targets,
+            splits,
+            knn_k=5,
+        )
+    )
+
+    assert linear_r2 == pytest.approx(1.0)
+    assert knn_r2 > 0.99
+    assert distance_corr == pytest.approx(1.0)
+    assert spearman_corr == pytest.approx(1.0)
+
+
+def test_spearman_distance_correlation_is_one_for_matching_distances():
+    values = np.arange(20, dtype=float)
+
+    score = _spearman_dist_correlation(values[:, None], values)
 
     assert score == pytest.approx(1.0)
 
@@ -201,6 +233,59 @@ def test_run_reduction_evaluation_writes_expected_files(
     assert "4. Proteins considered for evaluation: 24 proteins remain" in output
 
 
+def test_robustness_runs_are_aggregated_with_sample_standard_deviation(
+    tmp_path: Path,
+):
+    rng = np.random.default_rng(123)
+    n = 20
+    headers = [f"P{i}" for i in range(n)]
+    emb_set = EmbeddingSet(
+        name="prot_t5",
+        data=rng.normal(size=(n, 8)).astype(np.float32),
+        headers=headers,
+    )
+    metadata = pd.DataFrame(
+        {
+            "identifier": headers,
+            "protein_families": ["ClassA"] * 10 + ["ClassB"] * 10,
+        }
+    )
+    group_name = "ProtT5 — UMAP 2"
+    reductions = [
+        {
+            "name": group_name,
+            "dimensions": 2,
+            "info": {},
+            "data": rng.normal(size=(n, 2)).astype(np.float32),
+            "source_embedding": "prot_t5",
+            "robustness_group": group_name,
+            "robustness_run": run,
+        }
+        for run in range(2)
+    ]
+
+    run_reduction_evaluation(
+        embedding_sets=[emb_set],
+        reductions=reductions,
+        metadata=metadata,
+        output_path=tmp_path / "output" / "data.parquetbundle",
+        bundled=True,
+        label_column="protein_families",
+        min_class_size=0,
+    )
+
+    summary = pd.read_csv(
+        tmp_path / "output" / "eval" / "prot_t5" / "summary.tsv", sep="\t"
+    )
+    umap_rows = summary[summary["space"].str.contains("UMAP", na=False)]
+
+    assert len(umap_rows[umap_rows["type"] == "unsupervised"]) == 1
+    assert len(umap_rows[umap_rows["type"] == "supervised_categorical"]) == 1
+    assert set(umap_rows["robustness_runs"]) == {2}
+    assert umap_rows["recall_mean_std"].dropna().iloc[0] > 0
+    assert umap_rows["silhouette_std"].dropna().iloc[0] > 0
+
+
 def test_run_reduction_evaluation_prints_filter_summary(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -325,20 +410,31 @@ def test_multiple_labels_use_separate_supervised_output_directories(
     assert set(categorical_summary["type"]) == {"supervised_categorical"}
     assert set(categorical_summary["n_samples"]) == {12}
     assert set(categorical_summary["k_values"]) == {5}
-    assert {
+    categorical_metrics = {
         "knn_acc_mean",
         "silhouette",
         "concordex",
         "linear_auc",
         "linear_f1_macro",
-    }.issubset(categorical_summary.columns)
+    }
+    assert set(reduction_evaluation._CATEGORICAL_COL_LABELS) == categorical_metrics
+    assert categorical_metrics.issubset(categorical_summary.columns)
     assert set(continuous_summary["type"]) == {"supervised_continuous"}
     assert set(continuous_summary["n_samples"]) == {12}
-    assert {"linear_r2", "distance_correlation"}.issubset(
-        continuous_summary.columns
-    )
+    assert set(continuous_summary["regression_folds"]) == {5}
+    assert set(continuous_summary["knn_k"]) == {5}
+    continuous_metrics = {
+        "linear_r2",
+        "knn_r2",
+        "distance_correlation",
+        "spearman_dcorr",
+    }
+    assert set(reduction_evaluation._CONTINUOUS_COL_LABELS) == continuous_metrics
+    assert continuous_metrics.issubset(continuous_summary.columns)
     assert (continuous_dir / "linear_r2.png").exists()
+    assert (continuous_dir / "knn_r2.png").exists()
     assert (continuous_dir / "distance_correlation.png").exists()
+    assert (continuous_dir / "spearman_distance_correlation.png").exists()
     assert (continuous_dir / "heatmap_supervised.png").exists()
     categorical_dir = eval_dir / "protein_families"
     assert (categorical_dir / "linear_classifier_auc.png").exists()

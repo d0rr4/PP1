@@ -1,37 +1,34 @@
 import inspect
 import logging
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import fields
+from pathlib import Path
 from typing import Any, get_type_hints
 
+import anndata as ad
+import h5py
 import numpy as np
+import pandas as pd
+from rhopca.methods import rhoPCA
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS, TSNE
 
-import anndata as ad
-import pandas as pd
-import h5py
-
-import sys
-from pathlib import Path
-from rhopca.methods import rhoPCA
-
 # Re-export constants and config from lightweight module
 from protspace.utils.constants import (  # noqa: F401
+    CPCA_NAME,
+    DENSEMAP_NAME,
     LOCALMAP_NAME,
     MDS_NAME,
     METRIC_TYPES,
     PACMAP_NAME,
     PCA_NAME,
+    PHATE_NAME,
     REDUCER_METHODS,
+    RHOPCA_NAME,
+    TRIMAP_NAME,
     TSNE_NAME,
     UMAP_NAME,
-    RHOPCA_NAME,
-    DENSEMAP_NAME,
-    TRIMAP_NAME,
-    PHATE_NAME,
-    IRHOPCA_NAME,
-    CPCA_NAME,
     DimensionReductionConfig,
 )
 
@@ -117,8 +114,8 @@ def _ensure_annoy_or_fallback() -> None:
 
     def parameters_by_method(self, method: str) -> list[dict[str, Any]]:
         from pacmap import LocalMAP, PaCMAP
-        from umap import UMAP
         from rhopca.methods import rhoPCA
+        from umap import UMAP
 
         method_map = {
             TSNE_NAME: TSNE,
@@ -282,7 +279,7 @@ class PCAReducer(DimensionReducer):
 
 class rhoPCAReducer(DimensionReducer):
     """rhoPCA - contrastive dimensionality reduction method.
-    
+
     This reducer handles parsing background data explicitly from the CLI,
     formats matrices into AnnData structures, runs the contrastive PCA model,
     and extracts background-aware projections directly from the fitted model attributes.
@@ -325,23 +322,23 @@ class rhoPCAReducer(DimensionReducer):
             )
         target_data = data
         X = np.vstack([target_data, background_data])
-        
+
         labels = (
             ["target"] * len(target_data)
             + ["background"] * len(background_data)
         )
-        
+
         adata = ad.AnnData(X)
         adata.obs["group"] = pd.Categorical(labels)
-        
+
         scale_var = getattr(self.config, "scale_variance", True)
         dims = getattr(self.config, "n_components", 2)
         cs = getattr(self.config, "component_start", 1)
         total_needed = dims + cs - 1
-        
+
         # testing
         #print(f"Doing rhoPCA with dims: {dims}")
-        
+
         model = rhoPCA(
             adata,
             contrast_column="group",
@@ -350,9 +347,9 @@ class rhoPCAReducer(DimensionReducer):
             scale_variance=scale_var
         )
         model.fit()
-        
+
         full_embeddings = None
-        
+
         if hasattr(model, 'target_proj') and model.target_proj is not None:
             full_embeddings = np.array(model.target_proj)
             full_embeddings = full_embeddings[:, :total_needed]
@@ -361,118 +358,15 @@ class rhoPCAReducer(DimensionReducer):
             if loadings is not None:
                 v_slice = loadings[:, :total_needed]
                 full_embeddings = np.dot(X, v_slice)[:len(target_data)]
-                
+
         if full_embeddings is None:
             raise KeyError(
                 f"Could not extract target projections or loadings from rhoPCA.\n"
                 f"Available attributes: {[a for a in dir(model) if not a.startswith('__')]}"
             )
-        
+
         # Slice to the requested component range (1-indexed)
         return full_embeddings[:, cs - 1: cs - 1 + dims]
-    
-    def get_params(self) -> dict[str, Any]:
-        return {
-            "n_components": getattr(self.config, "n_components", 2),
-            "scale_variance": getattr(self.config, "scale_variance", True),
-            "component_start": getattr(self.config, "component_start", 1),
-        }
-
-
-class irhoPCAReducer(DimensionReducer):
-    """irhoPCA — inverse rhoPCA: swap target/background labels so rhoPCA
-    finds background-dominant directions, then project the original target
-    data onto those axes.
-
-    Answers: "When the background undergoes its major variations, what are
-    my target proteins doing in that same feature space?"
-
-    Uses the rhopca package with swapped labels — no manual eigendecomposition.
-    Reuses existing config fields: n_components, component_start, scale_variance.
-    """
-
-    def fit_transform(
-        self, data: np.ndarray, background_data: np.ndarray = None
-    ) -> np.ndarray:
-        # --- Load background (same pattern as rhoPCAReducer) ---
-        # Use background_data if already passed by the pipeline (avoids double-load).
-        # Only fall back to CLI arg parsing when the reducer is called standalone.
-        if background_data is None:
-            bg_path_str = None
-            if "--background" in sys.argv:
-                try:
-                    idx = sys.argv.index("--background")
-                    bg_path_str = sys.argv[idx + 1]
-                except IndexError:
-                    pass
-
-            if bg_path_str:
-                bg_path = Path(bg_path_str)
-                if not bg_path.exists():
-                    raise FileNotFoundError(
-                        f"The background file specified in the command line "
-                        f"does not exist: {bg_path.resolve()}"
-                    )
-                logger.info(
-                    "irhoPCA: reading background matrix from CLI: %s", bg_path
-                )
-                with h5py.File(bg_path, "r") as f:
-                    first_key = list(f.keys())[0]
-                    if f[first_key].ndim == 1:
-                        background_data = np.vstack(
-                            [f[key][:] for key in f.keys()]
-                        )
-                    else:
-                        background_data = np.array(f[first_key])
-
-        if background_data is None:
-            raise ValueError(
-                "irhoPCA requires background data. Provide it via the "
-                "--background CLI flag."
-            )
-
-        target_data = data
-
-        # --- Step 1: Stack with background FIRST (it becomes the "target") ---
-        X = np.vstack([background_data, target_data])
-        labels = ["target"] * len(background_data) + ["background"] * len(
-            target_data
-        )
-
-        adata = ad.AnnData(X)
-        adata.obs["group"] = pd.Categorical(labels)
-
-        scale_var = getattr(self.config, "scale_variance", True)
-        dims = getattr(self.config, "n_components", 2)
-        cs = getattr(self.config, "component_start", 1)
-        total_needed = dims + cs - 1
-
-        # --- Step 2: Run rhoPCA — finds directions where bg varies & target doesn't ---
-        model = rhoPCA(
-            adata,
-            contrast_column="group",
-            target="target",  # background data labeled as "target"
-            background="background",  # real target data labeled as "background"
-            scale_variance=scale_var,
-        )
-        model.fit()
-
-        # --- Step 3: Extract loading vectors ---
-        if not hasattr(model, "loadings") or model.loadings is None:
-            raise KeyError(
-                "irhoPCA: could not extract loadings from rhoPCA model. "
-                f"Available attributes: "
-                f"{[a for a in dir(model) if not a.startswith('__')]}"
-            )
-
-        W = np.array(model.loadings[:, :total_needed])  # shape (d, k)
-
-        # --- Step 4: Project the ORIGINAL target data onto these axes ---
-        X_target_centered = target_data - target_data.mean(axis=0, keepdims=True)
-        scores = X_target_centered @ W  # (n_target, k)
-
-        # Slice to the requested component range (1-indexed)
-        return scores[:, cs - 1: cs - 1 + dims]
 
     def get_params(self) -> dict[str, Any]:
         return {
@@ -625,8 +519,8 @@ class UMAPReducer(DimensionReducer):
             metric=self.config.metric,
             random_state=self.config.random_state,
         ).fit_transform(data)
-        
-        
+
+
 
     def get_params(self) -> dict[str, Any]:
         return {
@@ -680,6 +574,7 @@ class TrimapReducer(DimensionReducer):
     def fit_transform(self, data: np.ndarray) -> np.ndarray:
         import trimap
 
+        np.random.seed(self.config.random_state)
         return trimap.TRIMAP(
             n_dims=self.config.n_components,
             n_inliers=self.config.trimap_n_inliers,
@@ -703,6 +598,7 @@ class TrimapReducer(DimensionReducer):
             "lr": self.config.trimap_lr,
             "n_iters": self.config.trimap_n_iters,
             "apply_pca": self.config.trimap_apply_pca,
+            "random_state": self.config.random_state,
         }
 
 
@@ -739,6 +635,7 @@ class PhateReducer(DimensionReducer):
             n_pca=self.config.phate_n_pca,
             knn_dist=self.config.metric,
             n_jobs=1,
+            random_state=self.config.random_state,
             verbose=False,
         ).fit_transform(data)
 
@@ -752,6 +649,7 @@ class PhateReducer(DimensionReducer):
             "gamma": self.config.phate_gamma,
             "n_pca": self.config.phate_n_pca,
             "metric": self.config.metric,
+            "random_state": self.config.random_state,
         }
 
 

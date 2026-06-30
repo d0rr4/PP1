@@ -10,7 +10,7 @@ import shutil
 from collections import Counter
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -25,6 +25,10 @@ from protspace.utils import get_reducers
 from protspace.utils.constants import MDS_NAME
 
 logger = logging.getLogger(__name__)
+
+STOCHASTIC_REDUCERS = frozenset(
+    {"tsne", "umap", "densmap", "pacmap", "localmap", "mds", "trimap", "phate"}
+)
 
 class ChainedMethodSpec:
     """A wrapper to hold multiple MethodSpecs in a sequential pipeline chain."""
@@ -94,6 +98,53 @@ class MethodSpec:
         return dict(self.overrides)
 
 
+@dataclass(frozen=True)
+class BackgroundSpec:
+    """A contrastive-reduction background file with an optional display label."""
+
+    path: Path
+    label: str | None = None
+
+    def projection_label(self, *, multiple: bool) -> str | None:
+        if self.label:
+            return self.label
+        return self.path.stem if multiple else None
+
+
+def parse_background_spec(value: str | Path) -> BackgroundSpec:
+    """Parse ``PATH[:LABEL]`` while preserving bare Windows drive paths."""
+    raw = str(value).strip()
+    if not raw:
+        raise ValueError("--background must not be empty.")
+
+    path_text, separator, label = raw.rpartition(":")
+    path_has_h5_suffix = Path(path_text).suffix.lower() in {".h5", ".hdf5"}
+    if separator and path_has_h5_suffix:
+        label = label.strip()
+        if not label:
+            raise ValueError(f"Background label is empty in '{raw}'.")
+        if any(character in label for character in (":", "/", "\\")):
+            raise ValueError(
+                f"Invalid background label '{label}': do not use ':', '/', or '\\'."
+            )
+        return BackgroundSpec(Path(path_text), label)
+    return BackgroundSpec(Path(raw))
+
+
+def parse_background_specs(values: list[str | Path] | None) -> list[BackgroundSpec]:
+    """Parse repeatable backgrounds and reject ambiguous output names."""
+    specs = [parse_background_spec(value) for value in values or []]
+    if len(specs) > 1:
+        labels = [spec.projection_label(multiple=True) for spec in specs]
+        duplicates = [label for label, count in Counter(labels).items() if count > 1]
+        if duplicates:
+            raise ValueError(
+                "Background labels must be unique; duplicate(s): "
+                + ", ".join(str(label) for label in duplicates)
+            )
+    return specs
+
+
 @dataclass
 class PipelineConfig:
     """Configuration for a ReductionPipeline run."""
@@ -101,6 +152,7 @@ class PipelineConfig:
     methods: list[MethodSpec]
     output_path: Path
     background_path: Path | str | None = None
+    backgrounds: list[BackgroundSpec] = field(default_factory=list)
     bundled: bool = True
     keep_tmp: bool = False
     no_scores: bool = False
@@ -113,6 +165,15 @@ class PipelineConfig:
         default_factory=lambda: ["protein_families"]
     )
     eval_filter: int = 0
+    robustness: int = 1
+
+    def resolved_backgrounds(self) -> list[BackgroundSpec]:
+        """Return new-style backgrounds or the legacy singular background."""
+        if self.backgrounds:
+            return self.backgrounds
+        if self.background_path is not None:
+            return parse_background_specs([self.background_path])
+        return []
 
 
 # Valid override parameter names (from ReducerParams fields)
@@ -283,6 +344,10 @@ class ReductionPipeline:
         """
         if not embedding_sets:
             raise ValueError("At least one EmbeddingSet is required.")
+        if self.config.robustness < 1:
+            raise ValueError("--robustness must be at least 1.")
+        if self.config.robustness > 1 and not self.config.eval_enabled:
+            raise ValueError("--robustness greater than 1 requires --eval.")
 
         # Merge same-name embedding sets (union their proteins)
         from protspace.data.loaders.embedding_set import merge_same_name_sets
@@ -327,9 +392,39 @@ class ReductionPipeline:
         if self.config.eval_enabled:
             from protspace.data.evaluation.reduction import run_reduction_evaluation
 
+            evaluation_reductions = [
+                {
+                    **reduction,
+                    "robustness_group": reduction["name"],
+                    "robustness_run": 0,
+                }
+                for reduction in all_reductions
+            ]
+            for run_index in range(1, self.config.robustness):
+                seed = self.config.reducer_params.random_state + run_index
+                logger.info(
+                    "Robustness realization %d/%d (random_state=%d)",
+                    run_index + 1,
+                    self.config.robustness,
+                    seed,
+                )
+                extra_reductions = self._run_reductions(
+                    embedding_sets,
+                    stochastic_only=True,
+                    random_state=seed,
+                )
+                evaluation_reductions.extend(
+                    {
+                        **reduction,
+                        "robustness_group": reduction["name"],
+                        "robustness_run": run_index,
+                    }
+                    for reduction in extra_reductions
+                )
+
             run_reduction_evaluation(
                 embedding_sets=embedding_sets,
-                reductions=all_reductions,
+                reductions=evaluation_reductions,
                 metadata=metadata,
                 output_path=self.config.output_path,
                 bundled=self.config.bundled,
@@ -628,6 +723,7 @@ class ReductionPipeline:
         dims: int,
         effective_params: dict[str, Any] | None = None,
         param_suffix: str = "",
+        background_label: str | None = None,
     ) -> dict[str, Any] | None:
         path = self._projection_cache_path(
             embedding_name, method, dims, effective_params
@@ -647,7 +743,13 @@ class ReductionPipeline:
         cached = np.load(path, allow_pickle=False)
         info = json.loads(str(cached["info"]))
         return {
-            "name": format_projection_name(embedding_name, method, dims, param_suffix),
+            "name": format_projection_name(
+                embedding_name,
+                method,
+                dims,
+                param_suffix,
+                background_label,
+            ),
             "dimensions": dims,
             "info": info,
             "data": cached["data"],
@@ -672,8 +774,160 @@ class ReductionPipeline:
 
     # --- Dimensionality reduction ---
 
+    @staticmethod
+    def _method_uses_background(method: str) -> bool:
+        normalized = method.lower()
+        return normalized.startswith("rhopca") or normalized == "cpca"
+
+    @staticmethod
+    def _stages_for_spec(spec: MethodSpec | ChainedMethodSpec) -> list[MethodSpec]:
+        return spec.stages if isinstance(spec, ChainedMethodSpec) else [spec]
+
+    @staticmethod
+    def _load_background_matrix(
+        spec: BackgroundSpec,
+        cache: dict[Path, np.ndarray],
+    ) -> np.ndarray:
+        import h5py
+
+        cache_key = spec.path.resolve()
+        if cache_key in cache:
+            return cache[cache_key]
+        if not spec.path.exists():
+            raise FileNotFoundError(f"Background file not found: {spec.path}")
+
+        logger.info("Loading background dataset from: %s", spec.path)
+        with h5py.File(spec.path, "r") as handle:
+            keys = list(handle.keys())
+            if not keys:
+                raise ValueError(f"Background HDF5 file is empty: {spec.path}")
+            first = handle[keys[0]]
+            if first.ndim == 1:
+                matrix = np.vstack([handle[key][:] for key in keys])
+            else:
+                matrix = np.asarray(first)
+        if matrix.dtype == np.float16:
+            matrix = matrix.astype(np.float32)
+        cache[cache_key] = matrix
+        return matrix
+
+    def _run_method_spec(
+        self,
+        *,
+        emb_set: EmbeddingSet,
+        spec: MethodSpec | ChainedMethodSpec,
+        method_counts: Counter,
+        global_params: dict[str, Any],
+        background: BackgroundSpec | None,
+        background_count: int,
+        background_cache: dict[Path, np.ndarray],
+        force_random_state: int | None = None,
+    ) -> tuple[dict[str, Any] | None, bool]:
+        """Run one method specification for one optional background."""
+        stages = self._stages_for_spec(spec)
+        combined_method_name = "+".join(str(stage) for stage in stages)
+        final_dims = stages[-1].dims
+        param_suffix = disambiguation_suffix(spec, method_counts)
+        background_label = (
+            background.projection_label(multiple=background_count > 1)
+            if background
+            else None
+        )
+        cache_params = dict(global_params)
+        if background:
+            cache_params["background"] = str(background.path.resolve())
+
+        cached = self._load_cached_projection(
+            emb_set.name,
+            combined_method_name,
+            final_dims,
+            cache_params,
+            param_suffix,
+            background_label,
+        )
+        if cached:
+            cached["source_embedding"] = emb_set.name
+            return cached, True
+
+        current_input_data = emb_set.data
+        chain_reduction: dict[str, Any] | None = None
+        for index, stage_spec in enumerate(stages):
+            method, dims = stage_spec.method, stage_spec.dims
+            if method not in self.base.reducers and method.lower() != "rhopca":
+                logger.warning("Unknown method: %s. Skipping stage.", method)
+                continue
+
+            effective_params = {**global_params, **stage_spec.overrides_dict}
+            if force_random_state is not None:
+                effective_params["random_state"] = force_random_state
+            if index < len(stages) - 1:
+                effective_params["validate_dims"] = False
+            if self._method_uses_background(method):
+                if background is None:
+                    raise ValueError(
+                        f"{method} requires --background. Provide at least one "
+                        "background HDF5 file."
+                    )
+                background_matrix = self._load_background_matrix(
+                    background, background_cache
+                )
+                if background_matrix.shape[1] != current_input_data.shape[1]:
+                    raise ValueError(
+                        f"Background '{background.path}' has "
+                        f"{background_matrix.shape[1]} features, but {method} input "
+                        f"has {current_input_data.shape[1]}."
+                    )
+                effective_params["background"] = str(background.path)
+                effective_params["background_matrix"] = background_matrix
+
+            logger.info(
+                "Applying step %d/%d: %s %d to data shape %s%s",
+                index + 1,
+                len(stages),
+                method.upper(),
+                dims,
+                current_input_data.shape,
+                f" with background '{background_label}'" if background_label else "",
+            )
+            chain_reduction = _run_with_overridden_config(
+                self.base,
+                effective_params,
+                method,
+                dims,
+                current_input_data,
+            )
+            if "data" in chain_reduction:
+                current_input_data = chain_reduction["data"]
+            elif "embeddings" in chain_reduction:
+                current_input_data = chain_reduction["embeddings"]
+            else:
+                current_input_data = chain_reduction
+
+        if chain_reduction is None:
+            return None, False
+        chain_reduction["name"] = format_projection_name(
+            emb_set.name,
+            combined_method_name,
+            final_dims,
+            param_suffix,
+            background_label,
+        )
+        chain_reduction["source_embedding"] = emb_set.name
+        self._save_projection_cache(
+            emb_set.name,
+            combined_method_name,
+            final_dims,
+            chain_reduction,
+            cache_params,
+        )
+        return chain_reduction, False
+
     def _run_reductions(
-        self, embedding_sets: list[EmbeddingSet]
+        self,
+        embedding_sets: list[EmbeddingSet],
+        *,
+        stochastic_only: bool = False,
+        random_state: int | None = None,
     ) -> list[dict[str, Any]]:
         """Run dimensionality reduction on all embedding sets."""
         all_reductions = []
@@ -686,9 +940,15 @@ class ReductionPipeline:
         )
 
         global_params = asdict(self.config.reducer_params)
+        if random_state is not None:
+            global_params["random_state"] = random_state
+        backgrounds = self.config.resolved_backgrounds()
+        background_cache: dict[Path, np.ndarray] = {}
 
         for emb_set in embedding_sets:
             if emb_set.precomputed:
+                if stochastic_only:
+                    continue
                 cached = self._load_cached_projection(
                     emb_set.name, MDS_NAME, 2, global_params
                 )
@@ -712,97 +972,40 @@ class ReductionPipeline:
                 continue
 
             for spec in self.config.methods:
-                # parsing chains:
-                if hasattr(spec, "stages"): 
-                    stages = spec.stages
-                elif "+" in spec.method:     
-                    stages = [spec]  
-                else:
-                    stages = [spec]
-                current_input_data = emb_set.data
-                chain_reduction = None
-                chain_methods_executed = []
-                
-                # Combined metadata tracking for the whole chain
-                #combined_method_name = "+".join([s.method for s in stages])
-                combined_method_name = "+".join(str(stage) for stage in stages)
-                final_dims = stages[-1].dims
-
-                # Check cache for the WHOLE chain first before running computations
-                param_suffix = disambiguation_suffix(spec, method_counts)
-                cached = self._load_cached_projection(
-                    emb_set.name, combined_method_name, final_dims, global_params, param_suffix
-                )
-
-                if cached:
-                    cached["source_embedding"] = emb_set.name
-                    all_reductions.append(cached)
-                    cached_projections.append(
-                        f"{combined_method_name.upper()} {final_dims} ({emb_set.name})"
-                    )
+                stages = self._stages_for_spec(spec)
+                if stochastic_only and not any(
+                    stage.method.lower() in STOCHASTIC_REDUCERS for stage in stages
+                ):
                     continue
-
-                for idx, stage_spec in enumerate(stages):
-                    method, dims = stage_spec.method, stage_spec.dims
-
-                    if method not in self.base.reducers and method.lower() != "rhopca":
-                        logger.warning(f"Unknown method: {method}. Skipping stage.")
+                needs_background = any(
+                    self._method_uses_background(stage.method) for stage in stages
+                )
+                if needs_background and not backgrounds:
+                    raise ValueError(
+                        "rhoPCA requires at least one background matrix. "
+                        "Provide it via --background PATH[:LABEL]."
+                    )
+                run_backgrounds: list[BackgroundSpec | None] = (
+                    list(backgrounds) if needs_background else [None]
+                )
+                for background in run_backgrounds:
+                    reduction, from_cache = self._run_method_spec(
+                        emb_set=emb_set,
+                        spec=spec,
+                        method_counts=method_counts,
+                        global_params=global_params,
+                        background=background,
+                        background_count=len(backgrounds),
+                        background_cache=background_cache,
+                        force_random_state=random_state,
+                    )
+                    if reduction is None:
                         continue
-                    effective_params = {**global_params, **stage_spec.overrides_dict}
-                    
-                    is_intermediate_step = (idx < len(stages) - 1)
-                    if is_intermediate_step:
-                        # Tell the reducer config validation to bypass the [2, 3] check
-                        effective_params["validate_dims"] = False
-                    #################################################################
-                    # rhoPCA / irhoPCA / cPCA (all need background)
-                    if method.lower().startswith("rhopca") or method.lower() in ("irhopca", "cpca"):
-                        if not self.config.background_path:
-                            raise ValueError(
-                                "rhoPCA requires a background matrix configuration. "
-                                "Please provide it via the --background CLI flag."
-                            )
-                        import h5py
-                        import numpy as np
-                        logger.info(f"Loading background dataset from: {self.config.background_path}")
-
-                        with h5py.File(self.config.background_path, "r") as hf:
-                            first_key = list(hf.keys())[0]
-                            if hf[first_key].ndim == 1:
-                                background_matrix = np.vstack([hf[key][:] for key in hf.keys()])
-                            else:
-                                background_matrix = np.array(hf[first_key])
-
-                        effective_params["background"] = self.config.background_path
-                        effective_params["background_matrix"] = background_matrix
-                    #################################################################
-
-                    logger.info(f"Applying step {idx+1}/{len(stages)}: {method.upper()} {dims} to data shape {current_input_data.shape}")
-                    
-                    # Compute current stage reduction
-                    chain_reduction = _run_with_overridden_config(
-                        self.base, effective_params, method, dims, current_input_data
-                    )
-
-
-                    if "data" in chain_reduction:
-                        current_input_data = chain_reduction["data"]
-                    elif "embeddings" in chain_reduction:
-                        current_input_data = chain_reduction["embeddings"]
+                    all_reductions.append(reduction)
+                    if from_cache:
+                        cached_projections.append(reduction["name"])
                     else:
-                        # Fallback if the reduction returns a raw array or custom format
-                        current_input_data = chain_reduction 
-                if chain_reduction is not None:
-                    chain_reduction["name"] = format_projection_name(
-                        emb_set.name, combined_method_name, final_dims, param_suffix
-                    )
-                    chain_reduction["source_embedding"] = emb_set.name
-                    
-                    all_reductions.append(chain_reduction)
-                    self._save_projection_cache(
-                        emb_set.name, combined_method_name, final_dims, chain_reduction, global_params
-                    )
-                    computed_count += 1
+                        computed_count += 1
 
         if cached_projections:
             logger.warning(

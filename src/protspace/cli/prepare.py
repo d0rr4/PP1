@@ -188,10 +188,13 @@ Opt_NoLog = Annotated[
     ),
 ]
 Opt_Background = Annotated[
-    Path | None,
+    list[str] | None,
     typer.Option(
         "--background",
-        help="Path to the background .h5 embedding file required for rhoPCA.",
+        help=(
+            "Repeatable background for contrastive reductions as PATH[:LABEL]. "
+            "A label is appended to the projection method name."
+        ),
         rich_help_panel="Input",
     ),
 ]
@@ -222,6 +225,18 @@ Opt_Filter = Annotated[
         "--filter",
         min=0,
         help="Minimum proteins per class in --label for --eval.",
+        rich_help_panel="Evaluation",
+    ),
+]
+Opt_Robustness = Annotated[
+    int,
+    typer.Option(
+        "--robustness",
+        min=1,
+        help=(
+            "Total seeded runs for stochastic reducers during --eval. "
+            "Reports metric means and standard deviations."
+        ),
         rich_help_panel="Evaluation",
     ),
 ]
@@ -340,6 +355,7 @@ def prepare(
     eval: Opt_Eval = False,
     label: Opt_Label = None,
     filter: Opt_Filter = 0,
+    robustness: Opt_Robustness = 1,
     # General
     verbose: Opt_Verbose = 0,
 ) -> None:
@@ -525,10 +541,12 @@ def prepare(
             PipelineConfig,
             ReducerParams,
             ReductionPipeline,
+            parse_background_specs,
             parse_methods_arg,
         )
 
         method_specs = parse_methods_arg(methods or ["pca2"])
+        background_specs = parse_background_specs(background)
 
         reducer_params = ReducerParams(
             metric=metric.value,
@@ -553,10 +571,11 @@ def prepare(
             annotations=annotation_list,
             intermediate_dir=cache_dir,
             reducer_params=reducer_params,
-            background_path=background,
+            backgrounds=background_specs,
             eval_enabled=eval,
             eval_labels=label or ["protein_families"],
             eval_filter=filter,
+            robustness=robustness,
         )
 
         ReductionPipeline(config).run(embedding_sets)
@@ -694,6 +713,11 @@ def _write_run_log(
 
     lines += ["", "## Projection"]
     lines.append(f"methods: {', '.join(str(m) for m in pipeline_config.methods)}")
+    for background_spec in pipeline_config.resolved_backgrounds():
+        background_value = str(background_spec.path)
+        if background_spec.label:
+            background_value += f":{background_spec.label}"
+        lines.append(f"background: {background_value}")
     lines.append(f"similarity: {similarity}")
     for key, val in rp.items():
         lines.append(f"{key}: {val}")
@@ -708,6 +732,7 @@ def _write_run_log(
         f"enabled: {pipeline_config.eval_enabled}",
         f"labels: {', '.join(pipeline_config.eval_labels)}",
         f"min_class_size: {pipeline_config.eval_filter}",
+        f"robustness_runs: {pipeline_config.robustness}",
         "",
         "## Output",
         f"format: {'parquetbundle' if pipeline_config.bundled else 'parquet'}",

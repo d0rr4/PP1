@@ -84,7 +84,7 @@ class BaseProcessor:
         reducer = reducer_cls(config)
 
         # Extract background matrix from config (pre-loaded by pipeline) so
-        # contrastive reducers (rhoPCA, irhoPCA, cPCA) don't reload from disk.
+        # contrastive reducers (rhoPCA, cPCA) don't reload from disk.
         background_matrix = getattr(config, "background_matrix", None)
 
         # Suppress noisy but harmless warnings from DR libraries:
