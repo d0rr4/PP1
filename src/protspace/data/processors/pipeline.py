@@ -332,6 +332,7 @@ class ReductionPipeline:
         self.config = config
         reducer_dict = asdict(config.reducer_params)
         self.base = BaseProcessor(reducer_dict, get_reducers())
+        self._deterministic_prefix_cache: dict[tuple[Any, ...], Any] = {}
 
     def run(self, embedding_sets: list[EmbeddingSet]) -> Path:
         """Execute the full pipeline.
@@ -356,6 +357,7 @@ class ReductionPipeline:
 
         # Validate all sets share the same headers (or compute intersection)
         all_headers = self._validate_headers(embedding_sets)
+        self._deterministic_prefix_cache.clear()
 
         # Fetch annotations (pass embedding sets so FASTA sequences can be reused)
         metadata = self._fetch_annotations(all_headers, embedding_sets)
@@ -430,6 +432,7 @@ class ReductionPipeline:
                 bundled=self.config.bundled,
                 label_columns=self.config.eval_labels,
                 min_class_size=self.config.eval_filter,
+                robustness=self.config.robustness,
             )
 
         logger.info(
@@ -825,6 +828,14 @@ class ReductionPipeline:
     ) -> tuple[dict[str, Any] | None, bool]:
         """Run one method specification for one optional background."""
         stages = self._stages_for_spec(spec)
+        first_stochastic_index = next(
+            (
+                index
+                for index, stage in enumerate(stages)
+                if stage.method.lower() in STOCHASTIC_REDUCERS
+            ),
+            None,
+        )
         combined_method_name = "+".join(str(stage) for stage in stages)
         final_dims = stages[-1].dims
         param_suffix = disambiguation_suffix(spec, method_counts)
@@ -850,8 +861,39 @@ class ReductionPipeline:
             return cached, True
 
         current_input_data = emb_set.data
+        start_index = 0
+        prefix_cache_key: tuple[Any, ...] | None = None
+        if first_stochastic_index:
+            prefix_params = []
+            for stage in stages[:first_stochastic_index]:
+                params = {**global_params, **stage.overrides_dict}
+                params.pop("random_state", None)
+                prefix_params.append(params)
+            prefix_cache_key = (
+                id(emb_set.data),
+                emb_set.name,
+                tuple(str(stage) for stage in stages[:first_stochastic_index]),
+                str(background.path.resolve()) if background else None,
+                json.dumps(prefix_params, sort_keys=True, default=str),
+            )
+            prefix_cache = getattr(self, "_deterministic_prefix_cache", None)
+            if prefix_cache is None:
+                prefix_cache = {}
+                self._deterministic_prefix_cache = prefix_cache
+            if force_random_state is not None and prefix_cache_key in prefix_cache:
+                current_input_data = prefix_cache[prefix_cache_key]
+                start_index = first_stochastic_index
+                logger.info(
+                    "Reusing deterministic prefix %s for robustness seed %d",
+                    "+".join(
+                        str(stage) for stage in stages[:first_stochastic_index]
+                    ),
+                    force_random_state,
+                )
+
         chain_reduction: dict[str, Any] | None = None
-        for index, stage_spec in enumerate(stages):
+        for index in range(start_index, len(stages)):
+            stage_spec = stages[index]
             method, dims = stage_spec.method, stage_spec.dims
             if method not in self.base.reducers and method.lower() != "rhopca":
                 logger.warning("Unknown method: %s. Skipping stage.", method)
@@ -902,6 +944,12 @@ class ReductionPipeline:
                 current_input_data = chain_reduction["embeddings"]
             else:
                 current_input_data = chain_reduction
+
+            if (
+                prefix_cache_key is not None
+                and index + 1 == first_stochastic_index
+            ):
+                self._deterministic_prefix_cache[prefix_cache_key] = current_input_data
 
         if chain_reduction is None:
             return None, False

@@ -10,13 +10,20 @@ def generate_split_fasta_from_excel(input_excel, output_fasta_1, output_fasta_2)
 
     # 2. Extract and format sequences into memory
     for idx, row in df.iterrows():
-        seq = row.get('mature_seq')
+        full_seq = row.get('full_seq')
+        mature_seq = row.get('mature_seq')
         identifier = row.get('identifier')
         id_new = row.get('id_new')
         
-        if pd.notna(seq) and isinstance(seq, str) and len(seq.strip()) > 0:
-            seq = seq.strip()
-            
+        # Determine sequence priority: full_seq first, then mature_seq fallback
+        seq = None
+        if pd.notna(full_seq) and isinstance(full_seq, str) and len(full_seq.strip()) > 0:
+            seq = full_seq.strip()
+        elif pd.notna(mature_seq) and isinstance(mature_seq, str) and len(mature_seq.strip()) > 0:
+            seq = mature_seq.strip()
+        
+        # If a valid sequence was found from either column, proceed
+        if seq is not None:
             # Extract the ID between the 1st and 2nd '|' (e.g., 'P01385')
             if pd.notna(identifier) and '|' in str(identifier):
                 parts = str(identifier).split('|')

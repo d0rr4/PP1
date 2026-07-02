@@ -25,6 +25,26 @@ from protspace.data.evaluation.reduction import (
 from protspace.data.loaders import EmbeddingSet
 
 
+def _read_summary(path: Path) -> pd.DataFrame:
+    return pd.read_csv(
+        path,
+        sep="\t",
+        comment="#",
+        dtype=str,
+        keep_default_na=False,
+    )
+
+
+def _read_summary_metadata(path: Path) -> pd.DataFrame:
+    rows = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("# ") or line.startswith("# metadata_key"):
+            continue
+        key, label, value = line[2:].split("\t", maxsplit=2)
+        rows.append({"key": key, "label": label, "value": value})
+    return pd.DataFrame(rows)
+
+
 def test_prepare_labels_lookup_strips_evidence_suffix():
     metadata = pd.DataFrame(
         {
@@ -51,6 +71,30 @@ def test_parse_label_specs_supports_typed_and_legacy_labels():
 
 def test_evaluation_uses_shared_k_values():
     assert DEFAULT_K_VALUES == (5, 10, 20, 30, 50)
+
+
+def test_wide_summary_does_not_need_matrix_column():
+    metrics = {
+        "recall_summary_mean": 0.9,
+        "recall_summary_std": 0.1,
+        "trust_summary_mean": 0.8,
+        "trust_summary_std": 0.2,
+        "cont_summary_mean": 0.7,
+        "cont_summary_std": 0.3,
+    }
+    evaluation = reduction_evaluation.EmbeddingEvaluation(
+        matrix="prot_t5",
+        unsupervised={"UMAP2 - Full": metrics},
+        supervised={},
+        k_values=[5],
+        n_full=20,
+        n_eval=20,
+    )
+
+    summary = reduction_evaluation._wide_summary_frame(evaluation)
+
+    assert "matrix" not in summary
+    assert summary["space"].tolist() == ["UMAP2"]
 
 
 def test_linear_classifier_scores_detect_separable_labels():
@@ -214,9 +258,9 @@ def test_run_reduction_evaluation_writes_expected_files(
         min_class_size=0,
     )
 
-    eval_dir = tmp_path / "output" / "eval" / "prot_t5"
+    eval_root = tmp_path / "output" / "eval"
+    eval_dir = eval_root / "prot_t5"
     expected_files = [
-        "summary.tsv",
         "recall.png",
         "trustworthiness.png",
         "continuity.png",
@@ -225,6 +269,8 @@ def test_run_reduction_evaluation_writes_expected_files(
     ]
     for filename in expected_files:
         assert (eval_dir / filename).exists()
+    assert (eval_dir / "summary.tsv").exists()
+    assert not (eval_root / "summary.tsv").exists()
 
     output = capsys.readouterr().out
     assert "1. Total proteins and label categories: 24 total proteins; 2 unique" in output
@@ -274,16 +320,18 @@ def test_robustness_runs_are_aggregated_with_sample_standard_deviation(
         min_class_size=0,
     )
 
-    summary = pd.read_csv(
-        tmp_path / "output" / "eval" / "prot_t5" / "summary.tsv", sep="\t"
-    )
+    summary_path = tmp_path / "output" / "eval" / "prot_t5" / "summary.tsv"
+    summary = _read_summary(summary_path)
     umap_rows = summary[summary["space"].str.contains("UMAP", na=False)]
 
-    assert len(umap_rows[umap_rows["type"] == "unsupervised"]) == 1
-    assert len(umap_rows[umap_rows["type"] == "supervised_categorical"]) == 1
-    assert set(umap_rows["robustness_runs"]) == {2}
-    assert umap_rows["recall_mean_std"].dropna().iloc[0] > 0
-    assert umap_rows["silhouette_std"].dropna().iloc[0] > 0
+    assert len(umap_rows) == 1
+    assert "type" not in summary
+    assert "robustness_runs" not in summary
+    assert float(umap_rows["recall_mean_std"].iloc[0]) > 0
+    assert float(umap_rows["silhouette_std:protein_families"].iloc[0]) > 0
+    metadata_rows = _read_summary_metadata(summary_path)
+    robustness = metadata_rows[metadata_rows["key"] == "robustness"]
+    assert robustness["value"].tolist() == ["2"]
 
 
 def test_run_reduction_evaluation_prints_filter_summary(
@@ -359,7 +407,7 @@ def test_run_reduction_evaluation_raises_for_missing_label_column(tmp_path: Path
         )
 
 
-def test_multiple_labels_use_separate_supervised_output_directories(
+def test_multiple_labels_share_one_wide_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setattr(reduction_evaluation, "_MAX_DIST_SAMPLES", 12)
@@ -398,18 +446,19 @@ def test_multiple_labels_use_separate_supervised_output_directories(
         min_class_size=0,
     )
 
-    eval_dir = tmp_path / "output" / "eval" / "prot_t5"
-    root_summary = pd.read_csv(eval_dir / "summary.tsv", sep="\t")
-    categorical_summary = pd.read_csv(
-        eval_dir / "protein_families" / "summary.tsv", sep="\t"
-    )
+    eval_root = tmp_path / "output" / "eval"
+    eval_dir = eval_root / "prot_t5"
+    summary_path = eval_dir / "summary.tsv"
+    summary = _read_summary(summary_path)
     continuous_dir = eval_dir / "sequence_length"
-    continuous_summary = pd.read_csv(continuous_dir / "summary.tsv", sep="\t")
+    categorical_dir = eval_dir / "protein_families"
 
-    assert set(root_summary["type"]) == {"unsupervised"}
-    assert set(categorical_summary["type"]) == {"supervised_categorical"}
-    assert set(categorical_summary["n_samples"]) == {12}
-    assert set(categorical_summary["k_values"]) == {5}
+    assert list(eval_root.rglob("summary.tsv")) == [summary_path]
+    assert {"label", "robustness", "robustness_runs", "k_values", "type"}.isdisjoint(
+        summary.columns
+    )
+    assert "matrix" not in summary
+    assert not summary["space"].str.contains(" - Full", regex=False).any()
     categorical_metrics = {
         "knn_acc_mean",
         "silhouette",
@@ -418,11 +467,9 @@ def test_multiple_labels_use_separate_supervised_output_directories(
         "linear_f1_macro",
     }
     assert set(reduction_evaluation._CATEGORICAL_COL_LABELS) == categorical_metrics
-    assert categorical_metrics.issubset(categorical_summary.columns)
-    assert set(continuous_summary["type"]) == {"supervised_continuous"}
-    assert set(continuous_summary["n_samples"]) == {12}
-    assert set(continuous_summary["regression_folds"]) == {5}
-    assert set(continuous_summary["knn_k"]) == {5}
+    assert {
+        f"{metric}:protein_families" for metric in categorical_metrics
+    }.issubset(summary.columns)
     continuous_metrics = {
         "linear_r2",
         "knn_r2",
@@ -430,12 +477,36 @@ def test_multiple_labels_use_separate_supervised_output_directories(
         "spearman_dcorr",
     }
     assert set(reduction_evaluation._CONTINUOUS_COL_LABELS) == continuous_metrics
-    assert continuous_metrics.issubset(continuous_summary.columns)
+    assert {
+        f"{metric}:sequence_length" for metric in continuous_metrics
+    }.issubset(summary.columns)
+    projection_row = summary[summary["space"] == "PCA2"].iloc[0]
+    assert projection_row["recall_mean"] != "-"
+    assert projection_row["knn_acc_mean:protein_families"] != "-"
+    assert projection_row["linear_r2:sequence_length"] != "-"
+    original_row = summary[summary["space"] == "Original (8)"].iloc[0]
+    assert set(original_row[list(reduction_evaluation._UNSUPERVISED_METRICS)]) == {
+        "-"
+    }
+
+    metadata_rows = _read_summary_metadata(summary_path)
+    categorical_metadata = metadata_rows[
+        metadata_rows["label"] == "protein_families"
+    ].set_index("key")["value"]
+    assert categorical_metadata["samples_after_filter"] == "30"
+    assert categorical_metadata["samples_evaluated"] == "12"
+    assert categorical_metadata["k_values"] == "5"
+    continuous_metadata = metadata_rows[
+        metadata_rows["label"] == "sequence_length"
+    ].set_index("key")["value"]
+    assert continuous_metadata["samples_after_filter"] == "30"
+    assert continuous_metadata["samples_evaluated"] == "12"
+    assert continuous_metadata["regression_folds"] == "5"
+    assert continuous_metadata["knn_k"] == "5"
     assert (continuous_dir / "linear_r2.png").exists()
     assert (continuous_dir / "knn_r2.png").exists()
     assert (continuous_dir / "distance_correlation.png").exists()
     assert (continuous_dir / "spearman_distance_correlation.png").exists()
     assert (continuous_dir / "heatmap_supervised.png").exists()
-    categorical_dir = eval_dir / "protein_families"
     assert (categorical_dir / "linear_classifier_auc.png").exists()
     assert (categorical_dir / "linear_classifier_f1.png").exists()

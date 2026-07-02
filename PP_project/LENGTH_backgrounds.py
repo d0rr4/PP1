@@ -9,10 +9,10 @@ TARGET_TSV = 'datasets/uniref50_under_2k_subset_seqs.tsv'
 FULL_TSV = 'datasets/uniref50_under_2k.tsv'
 EMBEDDINGS_H5 = 'embeddings/per-protein.h5'
 
-OUT_H5_REAL = 'embeddings/LENGTH_real.h5'
-OUT_FASTA_RANDOM = 'datasets/LENGTH_random_aa.fasta'
-OUT_FASTA_POLY_A = 'datasets/LENGTH_poly_alanine.fasta'
-OUT_FASTA_SHUFFLED = 'datasets/LENGTH_shuffled.fasta'
+OUT_H5_REAL = 'embeddings/uniref50_background_real.h5'
+OUT_FASTA_RANDOM = 'datasets/uniref50_background_random.fasta'
+OUT_FASTA_POLY_A = 'datasets/uniref50_background_polyA.fasta'
+OUT_FASTA_SHUFFLED = 'datasets/uniref50_background_shuffled.fasta'
 
 STANDARD_AAS = list("ACDEFGHIKLMNPQRSTVWY")
 
@@ -29,7 +29,7 @@ def generate_backgrounds():
     if not has_sequence:
         print("WARNING: No 'Sequence' column found in target TSV. Background 4 (shuffled) will be skipped or fail.")
 
-    # =====================================================================
+# =====================================================================
     # Background 1: Real Proteins, Length-Matched, Non-overlapping Clusters
     # =====================================================================
     print("Generating Background 1 (Real Embeddings)...")
@@ -49,9 +49,15 @@ def generate_backgrounds():
             # Fallback: Find the closest length if exact match isn't available
             idx = (pool_df['Length'] - L).abs().idxmin()
             
-        selected_uniprots.append(pool_df.loc[idx, 'From'])
-        # Drop to sample without replacement
-        pool_df = pool_df.drop(idx)
+        # 1. Grab the UniProt ID and the Cluster ID for this selection
+        selected_uid = pool_df.loc[idx, 'From']
+        selected_cluster = pool_df.loc[idx, 'Cluster ID']
+        
+        selected_uniprots.append(selected_uid)
+        
+        # 2. FIX: Drop the ENTIRE cluster from the pool, not just the single row
+        # This guarantees no sequence in your background shares >50% ID with another
+        pool_df = pool_df[pool_df['Cluster ID'] != selected_cluster]
         
     print(f"Extracting {len(selected_uniprots)} embeddings from H5 file...")
     

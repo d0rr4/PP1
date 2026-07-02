@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +66,58 @@ class EvaluationLabel:
     column: str
 
 
+@dataclass(frozen=True)
+class SupervisedEvaluation:
+    """Metric rows and label-level metadata for one supervised evaluation."""
+
+    rows: list[dict[str, Any]]
+    metadata: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class EmbeddingEvaluation:
+    """All summary data produced for one embedding matrix."""
+
+    matrix: str
+    unsupervised: dict[str, dict[str, Any]]
+    supervised: dict[str, SupervisedEvaluation]
+    k_values: list[int]
+    n_full: int
+    n_eval: int
+
+
+_UNSUPERVISED_METRICS = (
+    "recall_mean",
+    "recall_mean_std",
+    "trust_mean",
+    "trust_mean_std",
+    "cont_mean",
+    "cont_mean_std",
+)
+_CATEGORICAL_METRICS = (
+    "knn_acc_mean",
+    "knn_acc_mean_std",
+    "silhouette",
+    "silhouette_std",
+    "concordex",
+    "concordex_std",
+    "linear_auc",
+    "linear_auc_std",
+    "linear_f1_macro",
+    "linear_f1_macro_std",
+)
+_CONTINUOUS_METRICS = (
+    "linear_r2",
+    "linear_r2_std",
+    "knn_r2",
+    "knn_r2_std",
+    "distance_correlation",
+    "distance_correlation_std",
+    "spearman_dcorr",
+    "spearman_dcorr_std",
+)
+
+
 def _parse_label_specs(raw_labels: Iterable[str]) -> list[EvaluationLabel]:
     """Parse ``[categorical|continuous]:column`` label specifications."""
     specs: list[EvaluationLabel] = []
@@ -101,6 +154,7 @@ def run_reduction_evaluation(
     min_class_size: int,
     label_columns: list[str] | None = None,
     label_column: str | None = None,
+    robustness: int | None = None,
 ) -> None:
     """Run label-independent and per-label DR evaluation."""
     if min_class_size < 0:
@@ -127,10 +181,13 @@ def run_reduction_evaluation(
 
     eval_root = _resolve_output_dir(output_path, bundled) / "eval"
     eval_root.mkdir(parents=True, exist_ok=True)
+    for stale_summary in eval_root.rglob("summary.tsv"):
+        stale_summary.unlink()
 
     reductions_by_embedding = _group_reductions_by_embedding(reductions)
 
     evaluated = 0
+    summary_evaluations: list[EmbeddingEvaluation] = []
     for emb_set in embedding_sets:
         if emb_set.precomputed:
             logger.warning(
@@ -153,7 +210,7 @@ def run_reduction_evaluation(
             unsupervised, k_values, n_full, n_eval = _evaluate_unsupervised(
                 emb_set=emb_set, reductions=emb_reductions, out_dir=embedding_dir
             )
-            single_label_rows: list[dict[str, Any]] | None = None
+            supervised: dict[str, SupervisedEvaluation] = {}
             for spec in label_specs:
                 label_dir = (
                     embedding_dir
@@ -161,7 +218,7 @@ def run_reduction_evaluation(
                     else embedding_dir / _safe_dir_name(spec.column)
                 )
                 try:
-                    rows = _evaluate_supervised_label(
+                    result = _evaluate_supervised_label(
                         emb_set=emb_set,
                         reductions=emb_reductions,
                         metadata=metadata,
@@ -177,12 +234,11 @@ def run_reduction_evaluation(
                         exc,
                     )
                     continue
-                if len(label_specs) == 1:
-                    single_label_rows = rows
-                else:
-                    _write_summary(out_dir=label_dir, supervised=rows)
+                supervised[spec.column] = result
+                if len(label_specs) > 1:
                     _plot_summary_heatmaps(
                         out_dir=label_dir,
+                        summary=_summary_frame(supervised=result.rows),
                         k_values=[],
                         label_column=spec.column,
                         supervised_kind=spec.kind,
@@ -190,18 +246,34 @@ def run_reduction_evaluation(
                         n_eval=0,
                     )
 
-            _write_summary(
-                out_dir=embedding_dir,
-                unsupervised=unsupervised,
-                supervised=single_label_rows,
+            single_label_result = (
+                next(iter(supervised.values()))
+                if len(label_specs) == 1 and supervised
+                else None
             )
             _plot_summary_heatmaps(
                 out_dir=embedding_dir,
+                summary=_summary_frame(
+                    unsupervised=unsupervised,
+                    supervised=(
+                        single_label_result.rows if single_label_result else None
+                    ),
+                ),
                 k_values=k_values,
                 label_column=label_specs[0].column if len(label_specs) == 1 else None,
                 supervised_kind=label_specs[0].kind if len(label_specs) == 1 else None,
                 n_full=n_full,
                 n_eval=n_eval,
+            )
+            summary_evaluations.append(
+                EmbeddingEvaluation(
+                    matrix=emb_set.name,
+                    unsupervised=unsupervised,
+                    supervised=supervised,
+                    k_values=k_values,
+                    n_full=n_full,
+                    n_eval=n_eval,
+                )
             )
             evaluated += 1
         except ValueError as exc:
@@ -210,7 +282,29 @@ def run_reduction_evaluation(
     if evaluated == 0:
         logger.warning("Evaluation requested, but no embedding set could be evaluated.")
     else:
+        robustness_value = (
+            robustness if robustness is not None else _infer_robustness(reductions)
+        )
+        for evaluation in summary_evaluations:
+            _write_summary(
+                out_dir=eval_root / _safe_dir_name(evaluation.matrix),
+                evaluation=evaluation,
+                robustness=robustness_value,
+                min_class_size=min_class_size,
+            )
         logger.info("Evaluation outputs saved to: %s", eval_root)
+
+
+def _infer_robustness(reductions: list[dict[str, Any]]) -> int:
+    """Infer the largest repeated projection group for direct API callers."""
+    groups = Counter(
+        (
+            str(reduction.get("source_embedding", "")),
+            str(reduction.get("robustness_group") or reduction["name"]),
+        )
+        for reduction in reductions
+    )
+    return max(groups.values(), default=1)
 
 
 def _resolve_output_dir(output_path: Path, bundled: bool) -> Path:
@@ -504,7 +598,7 @@ def _evaluate_supervised_label(
     spec: EvaluationLabel,
     min_class_size: int,
     out_dir: Path,
-) -> list[dict[str, Any]]:
+) -> SupervisedEvaluation:
     if spec.kind == "continuous":
         return _evaluate_continuous_label(
             emb_set=emb_set,
@@ -531,7 +625,7 @@ def _evaluate_categorical_label(
     label_column: str,
     min_class_size: int,
     out_dir: Path,
-) -> list[dict[str, Any]]:
+) -> SupervisedEvaluation:
     id_to_idx = {identifier: i for i, identifier in enumerate(emb_set.headers)}
     shared_ids = [
         identifier for identifier in emb_set.headers if identifier in labels_lookup.index
@@ -655,7 +749,7 @@ def _evaluate_categorical_label(
         pca10_name=pca10_name,
         label_column=label_column,
     )
-    return [
+    rows = [
         {
             "space": space,
             "type": "supervised_categorical",
@@ -691,6 +785,17 @@ def _evaluate_categorical_label(
         }
         for space in accuracy_runs
     ]
+    return SupervisedEvaluation(
+        rows=rows,
+        metadata={
+            "label_type": "categorical",
+            "samples_after_filter": len(labels),
+            "samples_evaluated": n_eval,
+            "categories_after_filter": int(np.unique(labels_int_all).size),
+            "k_values": ",".join(str(k) for k in k_values),
+            "classifier_folds": classifier_folds,
+        },
+    )
 
 
 def _classification_splits(
@@ -806,7 +911,7 @@ def _evaluate_continuous_label(
     values_lookup: pd.Series,
     label_column: str,
     out_dir: Path,
-) -> list[dict[str, Any]]:
+) -> SupervisedEvaluation:
     id_to_idx = {identifier: i for i, identifier in enumerate(emb_set.headers)}
     active_ids = [
         identifier for identifier in emb_set.headers if identifier in values_lookup.index
@@ -881,7 +986,7 @@ def _evaluate_continuous_label(
         len(emb_set.headers) - len(active_ids),
         len(indices),
     )
-    return [
+    rows = [
         {
             "space": space,
             "type": "supervised_continuous",
@@ -903,6 +1008,16 @@ def _evaluate_continuous_label(
         }
         for space in r2_runs
     ]
+    return SupervisedEvaluation(
+        rows=rows,
+        metadata={
+            "label_type": "continuous",
+            "samples_after_filter": len(active_ids),
+            "samples_evaluated": len(indices),
+            "regression_folds": len(folds),
+            "knn_k": knn_k,
+        },
+    )
 
 
 def _distance_correlation(features: np.ndarray, target: np.ndarray) -> float:
@@ -1246,12 +1361,12 @@ def _safe_silhouette(
 # ---------------------------------------------------------------------------
 
 
-def _write_summary(
+def _summary_frame(
     *,
-    out_dir: Path,
     unsupervised: dict[str, dict[str, Any]] | None = None,
     supervised: list[dict[str, Any]] | None = None,
-) -> None:
+) -> pd.DataFrame:
+    """Build the internal long-form frame consumed by summary heatmaps."""
     rows: list[dict[str, Any]] = []
     for space, metrics in (unsupervised or {}).items():
         rows.append(
@@ -1268,8 +1383,98 @@ def _write_summary(
             }
         )
     rows.extend(supervised or [])
+    return pd.DataFrame(rows)
 
-    pd.DataFrame(rows).to_csv(out_dir / "summary.tsv", sep="\t", index=False)
+
+def _wide_summary_frame(evaluation: EmbeddingEvaluation) -> pd.DataFrame:
+    """Merge all labels into one row per evaluated space."""
+    rows: dict[str, dict[str, Any]] = {}
+    row_order: list[str] = []
+    supervised_columns: list[str] = []
+
+    def ensure_row(space: str) -> dict[str, Any]:
+        if space not in rows:
+            rows[space] = {"space": space}
+            row_order.append(space)
+        return rows[space]
+
+    # Supervised spaces come first so Original/PCA baselines precede the
+    # actual projections. The unsupervised values are merged afterwards.
+    for label, result in evaluation.supervised.items():
+        metric_names = (
+            _CONTINUOUS_METRICS
+            if result.metadata["label_type"] == "continuous"
+            else _CATEGORICAL_METRICS
+        )
+        for metric in metric_names:
+            column = f"{metric}:{label}"
+            if column not in supervised_columns:
+                supervised_columns.append(column)
+        for metrics in result.rows:
+            row = ensure_row(str(metrics["space"]))
+            for metric in metric_names:
+                row[f"{metric}:{label}"] = metrics.get(metric)
+
+    for space, metrics in evaluation.unsupervised.items():
+        clean_space = space.removesuffix(" - Full")
+        row = ensure_row(clean_space)
+        row.update(
+            {
+                "recall_mean": round(metrics["recall_summary_mean"], 4),
+                "recall_mean_std": round(metrics["recall_summary_std"], 4),
+                "trust_mean": round(metrics["trust_summary_mean"], 4),
+                "trust_mean_std": round(metrics["trust_summary_std"], 4),
+                "cont_mean": round(metrics["cont_summary_mean"], 4),
+                "cont_mean_std": round(metrics["cont_summary_std"], 4),
+            }
+        )
+
+    columns = ["space", *_UNSUPERVISED_METRICS, *supervised_columns]
+    return pd.DataFrame([rows[key] for key in row_order]).reindex(columns=columns)
+
+
+def _write_summary(
+    *,
+    out_dir: Path,
+    evaluation: EmbeddingEvaluation,
+    robustness: int,
+    min_class_size: int,
+) -> None:
+    """Write the sole evaluation summary plus a comment-based metadata footer."""
+    path = out_dir / "summary.tsv"
+    _wide_summary_frame(evaluation).to_csv(
+        path,
+        sep="\t",
+        index=False,
+        na_rep="-",
+    )
+
+    metadata_rows: list[tuple[str, str, Any]] = [
+        ("robustness", "-", robustness),
+        ("min_class_size", "-", min_class_size),
+        ("sample_cap", "-", _MAX_DIST_SAMPLES),
+        (
+            "concordex_permutations",
+            "-",
+            DEFAULT_CONCORDEX_PERMUTATIONS,
+        ),
+    ]
+    metadata_rows.extend(
+        [
+            ("k_values", "-", ",".join(map(str, evaluation.k_values))),
+            ("samples_total", "-", evaluation.n_full),
+            ("samples_evaluated", "-", evaluation.n_eval),
+        ]
+    )
+    for label, result in evaluation.supervised.items():
+        metadata_rows.extend(
+            (key, label, value) for key, value in result.metadata.items()
+        )
+
+    with path.open("a", encoding="utf-8", newline="") as handle:
+        handle.write("# metadata_key\tlabel\tvalue\n")
+        for key, label, value in metadata_rows:
+            handle.write(f"# {key}\t{label}\t{value}\n")
 
 
 # ---------------------------------------------------------------------------
@@ -1300,13 +1505,14 @@ _CONTINUOUS_COL_LABELS: dict[str, str] = {
 def _plot_summary_heatmaps(
     *,
     out_dir: Path,
+    summary: pd.DataFrame,
     k_values: list[int] | None = None,
     label_column: str | None = None,
     supervised_kind: str | None = None,
     n_full: int | None = None,
     n_eval: int | None = None,
 ) -> None:
-    """Read the summary TSV and produce available metric heatmaps.
+    """Produce available metric heatmaps from an internal long-form summary.
 
     Categorical and continuous labels use their respective supervised metric
     columns. Both heatmaps use column-wise min-max normalisation for colour
@@ -1316,12 +1522,10 @@ def _plot_summary_heatmaps(
     subtitle for the three mean-based metrics.  When subsampling was applied
     (n_full > n_eval) the subtitle also states the effective sample size.
     """
-    tsv_path = out_dir / "summary.tsv"
-    if not tsv_path.exists():
-        logger.warning("summary.tsv not found; skipping heatmap generation.")
+    if summary.empty:
+        logger.warning("No evaluation results available; skipping heatmap generation.")
         return
-
-    df = pd.read_csv(tsv_path, sep="\t")
+    df = summary
 
     k_range_str = f"k ∈ {{{', '.join(str(k) for k in k_values)}}}"
     sample_note = (
@@ -1512,7 +1716,7 @@ def _render_heatmap(
                 if std_data is not None:
                     std_val = std_data.iloc[row_idx, col_idx]
                     if pd.notna(std_val):
-                        cell_text += f"\n± {std_val:.2f}"
+                        cell_text += f" ± {std_val:.2f}"
 
             rect = plt.Rectangle(
                 (col_idx, n_rows - row_idx - 1),

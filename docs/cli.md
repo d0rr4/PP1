@@ -131,10 +131,14 @@ This produces three projections: `ProtT5 — PCA 2`, `ProtT5 — UMAP 2 (n=15)`,
 
 | Flag | Description | Default |
 | ---- | ----------- | ------- |
-| `--eval / --no-eval` | Run evaluation after bundling. Writes plots and `summary.tsv` to `{output}/eval/<embedding_name>/`. | off |
+| `--eval / --no-eval` | Run evaluation after bundling. Writes a consolidated `summary.tsv` and plots below `{output}/eval/<embedding_name>/`. | off |
 | `--label` | Repeatable `[categorical|continuous]:COLUMN` specification. Untyped columns are categorical. | `protein_families` |
 | `--robustness INTEGER` | Total seeded runs for stochastic reducers during evaluation. Requires `--eval`; plots report mean ± sample SD. | `1` |
 | `--filter` | Minimum proteins required per categorical class; rarer classes are excluded. | `0` |
+
+For chained methods, robustness runs reuse all deterministic stages before the
+first stochastic reducer. The first stochastic stage and every later stage are
+rerun for each seed.
 
 #### Output
 
@@ -164,9 +168,15 @@ When `--eval` is enabled, protspace evaluates each embedding set separately afte
   - Neighborhood metrics use `k = 5, 10, 20, 30, 50`
   - Continuous: cross-validated linear-regression R², cross-validated kNN-regression R², distance correlation, and Spearman correlation between pairwise distances
 
-Each evaluated embedding gets:
+Each embedding gets one consolidated `eval/<embedding_name>/summary.tsv`. It
+has one row per evaluated space, combines unsupervised and supervised metrics,
+and suffixes each supervised metric with its label column. Missing unsupervised
+values for the Original/PCA baselines are written as `-`. A comment-prefixed
+metadata footer follows the data rows, so tabular readers can load only metric
+rows with `comment="#"`.
 
-- `summary.tsv`
+Each evaluated embedding gets these plots:
+
 - `recall.png`
 - `trustworthiness.png`
 - `continuity.png`
@@ -179,7 +189,7 @@ Each evaluated embedding gets:
 With multiple labels, the unsupervised files remain at
 `eval/<embedding_name>/` and each label's supervised files are written below
 `eval/<embedding_name>/<label>/`. All metrics use the same deterministic
-2,000-protein sample cap.
+10,000-protein sample cap.
 
 ## `protspace embed`
 

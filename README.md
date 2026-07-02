@@ -88,14 +88,21 @@ seeds. The requested seed is used for the first run and incremented for each
 additional run. Deterministic reducers still run once, and only the first
 projection is included in the output bundle.
 
+For chained methods, the deterministic prefix is computed once and reused.
+Each robustness realization starts at the first stochastic stage and reruns
+the complete remaining suffix, since later stages consume seed-dependent data.
+
 ```bash
 protspace prepare -i embeddings.h5 -m umap2,tsne2,pca2 --eval \
   --robustness 10 --label categorical:protein_families -o output
 ```
 
 Evaluation plots show the mean with sample-standard-deviation error bars.
-Summary heatmaps annotate repeated reducers as `mean ± SD`, and `summary.tsv`
-stores the number of runs plus a separate `*_std` column for every metric.
+Summary heatmaps annotate repeated reducers as `mean ± SD`. Each embedding's
+`eval/<embedding>/summary.tsv` combines all its labels, with supervised columns
+qualified by label (for example, `knn_acc_mean:protein_families`). Its
+comment-prefixed footer records robustness, effective k values, filtered and
+evaluated sample counts, cross-validation settings, and other run metadata.
 
 Categorical labels use kNN accuracy, silhouette score, and the
 permutation-corrected CONCORDEX coefficient (100 label permutations), plus
@@ -104,10 +111,10 @@ Neighborhood metrics are evaluated at `k=5,10,20,30,50`. Continuous labels
 use cross-validated linear-regression R² and kNN-regression R², distance
 correlation, and Spearman correlation between pairwise embedding distances and
 target differences. Values near zero indicate little predictive signal or
-dependence. All metrics share a deterministic 2,000-protein cap.
+dependence. All metrics share a deterministic 10,000-protein cap.
 Unsupervised outputs are written once to `eval/<embedding>/`; with multiple
 labels, supervised outputs are separated into `eval/<embedding>/<label>/`.
-With one label, all outputs remain directly in `eval/<embedding>/`. The
+With one label, all plots remain directly in `eval/<embedding>/`. The
 `--filter` threshold applies only to categorical labels.
 
 ### 2. Explore results

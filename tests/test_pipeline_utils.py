@@ -380,6 +380,58 @@ class TestRobustnessRuns:
         ]
         assert calls == [("umap", 47), ("mds", 47)]
 
+    def test_chained_runs_reuse_only_the_deterministic_prefix(
+        self, tmp_path: Path
+    ):
+        config = PipelineConfig(
+            methods=[parse_method_spec("pca5+pca4+umap3+pca2")],
+            output_path=tmp_path,
+        )
+        calls: list[tuple[str, int, int, int]] = []
+
+        class FakeBase:
+            config: dict = {}
+            reducers = {"pca": object, "umap": object}
+
+            def process_reduction(self, data, method, dims):
+                calls.append(
+                    (method, dims, self.config["random_state"], data.shape[1])
+                )
+                return {
+                    "name": "stub",
+                    "dimensions": dims,
+                    "info": {},
+                    "data": np.asarray(data)[:, :dims],
+                }
+
+        pipeline = ReductionPipeline.__new__(ReductionPipeline)
+        pipeline.config = config
+        pipeline.base = FakeBase()
+        embedding = EmbeddingSet(
+            name="prot_t5",
+            data=np.ones((8, 6), dtype=np.float32),
+            headers=[f"P{i}" for i in range(8)],
+        )
+
+        pipeline._run_reductions([embedding])
+        pipeline._run_reductions(
+            [embedding], stochastic_only=True, random_state=43
+        )
+        pipeline._run_reductions(
+            [embedding], stochastic_only=True, random_state=44
+        )
+
+        assert calls == [
+            ("pca", 5, 42, 6),
+            ("pca", 4, 42, 5),
+            ("umap", 3, 42, 4),
+            ("pca", 2, 42, 3),
+            ("umap", 3, 43, 4),
+            ("pca", 2, 43, 3),
+            ("umap", 3, 44, 4),
+            ("pca", 2, 44, 3),
+        ]
+
 
 # ---------------------------------------------------------------------------
 # format_param_suffix
