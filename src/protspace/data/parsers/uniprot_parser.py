@@ -44,6 +44,7 @@ ft_glycosylation         - Glycosylation (list)
 ft_lipidation            - Lipidation (list)
 ft_mod_res               - Modified residue (list)
 ft_signal                - Signal peptide
+ft_signal_bin            - Whether a signal peptide is annotated
 xref_pdb                 - PDB cross-references (list)
 """
 
@@ -126,6 +127,7 @@ AVAILABLE_PROPERTIES = [
     "ft_lipidation",
     "ft_mod_res",
     "ft_signal",
+    "ft_signal_bin",
     "xref_pdb",
 ]
 
@@ -472,6 +474,11 @@ class UniProtEntry:
             loc = annotations[0]["location"]
             return f"{loc['start']['value']}-{loc['end']['value']}"
         return ""
+
+    @property
+    def ft_signal_bin(self) -> bool:
+        """Return whether UniProt annotates a signal peptide."""
+        return bool(self.get_annotations("Signal"))
 
     # --- External: 3D Structure ---
 

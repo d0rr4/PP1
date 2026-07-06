@@ -42,6 +42,7 @@ _UNIPROT_USER_ANNOTATIONS = [
     "ec",
     "fragment",
     "ft_signal",
+    "ft_signal_bin",
     "go_bp",
     "go_cc",
     "go_mf",

@@ -6,7 +6,7 @@ ProtSpace retrieves annotations from five data sources: **UniProt**, **InterPro*
 
 | Source               | Annotations                                                                                                                                                                                                |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **UniProt** (15)     | `annotation_score`, `cc_subcellular_location`, `ec`, `fragment`, `ft_signal`, `gene_name`, `go_bp`, `go_cc`, `go_mf`, `keyword`, `length`, `protein_existence`, `protein_families`, `reviewed`, `xref_pdb` |
+| **UniProt** (16)     | `annotation_score`, `cc_subcellular_location`, `ec`, `fragment`, `ft_signal`, `ft_signal_bin`, `gene_name`, `go_bp`, `go_cc`, `go_mf`, `keyword`, `length`, `protein_existence`, `protein_families`, `reviewed`, `xref_pdb` |
 | **InterPro** (10)    | `cath`, `cdd`, `panther`, `pfam`, `pfam_clan`, `prints`, `prosite`, `signal_peptide`, `smart`, `superfamily`                                                                                           |
 | **Taxonomy** (9)     | `root`, `domain`, `kingdom`, `phylum`, `class`, `order`, `family`, `genus`, `species`                                                                                                                  |
 | **TED** (1)          | `ted_domains`                                                                                                                                                                                          |
@@ -62,7 +62,7 @@ With `--keep-tmp`, only API-fetched annotations are cached; the CSV is always re
 
 ## UniProt Annotations
 
-15 annotations retrieved from the [UniProt REST API](https://rest.uniprot.org/) (batch size: 100):
+16 annotations retrieved from the [UniProt REST API](https://rest.uniprot.org/) (batch size: 100):
 
 | Name                      | Description                          | Example                                                        |
 | ------------------------- | ------------------------------------ | -------------------------------------------------------------- |
@@ -71,6 +71,7 @@ With `--keep-tmp`, only API-fetched annotations are cached; the CSV is always re
 | `ec`                      | Enzyme Commission numbers + names    | `2.7.11.1 (Non-specific serine/threonine protein kinase)\|EXP` |
 | `fragment`                | Whether entry is a fragment          | `yes`                                                          |
 | `ft_signal`               | UniProt signal peptide coordinates   | `1-23`                                                         |
+| `ft_signal_bin`           | Has a UniProt signal peptide          | `True` / `False`                                               |
 | `gene_name`               | Primary gene name                    | `TP53`                                                         |
 | `go_bp`                   | GO — Biological Process              | `apoptotic process\|IDA;signal transduction\|IEA`              |
 | `go_cc`                   | GO — Cellular Component              | `nucleus\|IDA;cytoplasm\|IEA`                                  |

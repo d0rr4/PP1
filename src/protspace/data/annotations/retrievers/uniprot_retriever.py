@@ -24,6 +24,7 @@ UNIPROT_ANNOTATIONS = [
     "ec",
     "fragment",
     "ft_signal",
+    "ft_signal_bin",
     "gene_name",
     "go_bp",
     "go_cc",

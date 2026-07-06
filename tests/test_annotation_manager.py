@@ -751,6 +751,11 @@ class TestConstants:
         assert "ft_signal" in ANNOTATION_GROUPS["uniprot"]
         assert "ft_signal" in ANNOTATION_GROUPS["all"]
 
+    def test_ft_signal_bin_in_uniprot_annotations(self):
+        """Test that the UniProt signal peptide boolean is user-facing."""
+        assert "ft_signal_bin" in ANNOTATION_GROUPS["uniprot"]
+        assert "ft_signal_bin" in ANNOTATION_GROUPS["all"]
+
 
 # --- Mock UniProt JSON data with evidence ---
 

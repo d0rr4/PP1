@@ -319,6 +319,7 @@ class TestConstants:
             "reviewed",
             "fragment",
             "ft_signal",
+            "ft_signal_bin",
             "cc_subcellular_location",
             "ec",
             "go_bp",
@@ -335,7 +336,7 @@ class TestConstants:
         for annotation in expected_annotations:
             assert annotation in UNIPROT_ANNOTATIONS
 
-        assert len(UNIPROT_ANNOTATIONS) == 19
+        assert len(UNIPROT_ANNOTATIONS) == 20
 
     def test_protein_annotations_namedtuple(self):
         """Test ProteinAnnotations namedtuple structure."""
@@ -439,6 +440,18 @@ class TestExtractAnnotations:
         result = UniProtRetriever._extract_annotations(UniProtEntry(record))
 
         assert result["ft_signal"] == "1-23"
+        assert result["ft_signal_bin"] == "True"
+
+    def test_extract_annotations_marks_absent_signal_peptide_false(self):
+        """Active entries without a Signal feature expose False."""
+        from src.protspace.data.parsers.uniprot_parser import UniProtEntry
+
+        record = _make_mock_record("P99999")
+
+        result = UniProtRetriever._extract_annotations(UniProtEntry(record))
+
+        assert result["ft_signal"] == ""
+        assert result["ft_signal_bin"] == "False"
 
 
 class TestResolveInactiveEntries:
