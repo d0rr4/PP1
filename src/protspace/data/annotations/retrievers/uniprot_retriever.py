@@ -23,6 +23,7 @@ UNIPROT_ANNOTATIONS = [
     "cc_subcellular_location",
     "ec",
     "fragment",
+    "ft_signal",
     "gene_name",
     "go_bp",
     "go_cc",

@@ -746,6 +746,11 @@ class TestConstants:
         assert "length" in ANNOTATION_GROUPS["default"]
         assert "length" in ANNOTATION_GROUPS["uniprot"]
 
+    def test_ft_signal_in_uniprot_annotations(self):
+        """Test that UniProt signal peptide coordinates are user-facing."""
+        assert "ft_signal" in ANNOTATION_GROUPS["uniprot"]
+        assert "ft_signal" in ANNOTATION_GROUPS["all"]
+
 
 # --- Mock UniProt JSON data with evidence ---
 

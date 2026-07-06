@@ -41,6 +41,7 @@ _UNIPROT_USER_ANNOTATIONS = [
     "cc_subcellular_location",
     "ec",
     "fragment",
+    "ft_signal",
     "go_bp",
     "go_cc",
     "go_mf",
