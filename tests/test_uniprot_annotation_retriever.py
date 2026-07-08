@@ -427,7 +427,7 @@ class TestExtractAnnotations:
         from src.protspace.data.parsers.uniprot_parser import UniProtEntry
 
         record = _make_mock_record("P99999")
-        record["annotations"] = [
+        record["features"] = [
             {
                 "type": "Signal",
                 "location": {

@@ -1,9 +1,17 @@
+import importlib.util
+import sys
 from pathlib import Path
 
 import h5py
 import pandas as pd
 
-import TOX_backgrounds as backgrounds
+SCRIPT_PATH = Path(__file__).resolve().parents[1] / "TOX_backgrounds.py"
+SPEC = importlib.util.spec_from_file_location("tox_backgrounds", SCRIPT_PATH)
+if SPEC is None or SPEC.loader is None:
+    raise ImportError(f"Could not load {SCRIPT_PATH}")
+backgrounds = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = backgrounds
+SPEC.loader.exec_module(backgrounds)
 
 
 def test_accession_from_identifier_handles_bare_and_uniprot_ids():

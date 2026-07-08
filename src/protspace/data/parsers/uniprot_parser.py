@@ -493,7 +493,7 @@ class UniProtEntry:
         self, annotation_type: str | None = None
     ) -> list[dict[str, Any]]:
         """Get annotations, optionally filtered by type."""
-        annotations = self.data.get("annotations", [])
+        annotations = self.data.get("features", [])
         if annotation_type:
             return [f for f in annotations if f.get("type") == annotation_type]
         return annotations

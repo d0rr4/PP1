@@ -1,9 +1,9 @@
 """Build toxin target and background embedding datasets.
 
-The script expects the project data below ``PP_project/`` and writes two target
-datasets plus three background datasets. Run it from any working directory:
+The script expects ``datasets/`` and ``embeddings/`` beside this file and writes
+two target datasets plus three background datasets. Run it from any directory:
 
-    uv run TOX_backgrounds.py
+    uv run PP_project/TOX_backgrounds.py
 
 Use ``--overwrite`` to replace outputs from an earlier run.
 """
@@ -22,8 +22,8 @@ from pathlib import Path
 import h5py
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
-PP_PROJECT = ROOT / "PP_project"
+PP_PROJECT = Path(__file__).resolve().parent
+ROOT = PP_PROJECT.parent
 DATASETS = PP_PROJECT / "datasets"
 EMBEDDINGS = PP_PROJECT / "embeddings"
 
@@ -50,8 +50,8 @@ TARGET_MIXED_TSV = (
     DATASETS / "toxins_20_2000_signal_processed_puls_nonsignal.tsv"
 )
 
-BACKGROUND_5050_H5 = EMBEDDINGS / "nontoxins_20_2000_5050_lengthmatched.h5"
-BACKGROUND_5050_TSV = DATASETS / "nontoxins_20_2000_5050_lengthmatched.tsv"
+BACKGROUND_5050_H5 = EMBEDDINGS / "nontoxins_20_2000_5050.h5"
+BACKGROUND_5050_TSV = DATASETS / "nontoxins_20_2000_5050.tsv"
 
 BACKGROUND_NONTOXIN_PROCESSED_H5 = (
     EMBEDDINGS / "nontoxins_20_2000_5050_processed.h5"

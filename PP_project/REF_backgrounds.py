@@ -6,17 +6,24 @@ import os
 
 # --- Configuration ---
 TARGET_TSV = 'datasets/uniref50_under_2k_subset_seqs.tsv'
-FULL_TSV = 'datasets/uniref50_under_2k.tsv'
+FULL_TSV = 'datasets/uniref50_under_2k_seqs.tsv'
 EMBEDDINGS_H5 = 'embeddings/per-protein.h5'
 
+# Outputs
 OUT_H5_REAL = 'embeddings/uniref50_background_real.h5'
+OUT_FASTA_REAL = 'datasets/uniref50_background_real.fasta'       # Added
 OUT_FASTA_RANDOM = 'datasets/uniref50_background_random.fasta'
 OUT_FASTA_POLY_A = 'datasets/uniref50_background_polyA.fasta'
 OUT_FASTA_SHUFFLED = 'datasets/uniref50_background_shuffled.fasta'
 
 STANDARD_AAS = list("ACDEFGHIKLMNPQRSTVWY")
+SEED = 42  # Global random seed for deterministic execution
 
 def generate_backgrounds():
+    # --- Establish Absolute Seeding ---
+    random.seed(SEED)
+    np.random.seed(SEED)
+
     print("Loading metadata...")
     target_df = pd.read_csv(TARGET_TSV, sep='\t')
     full_df = pd.read_csv(FULL_TSV, sep='\t')
@@ -24,40 +31,48 @@ def generate_backgrounds():
     target_lengths = target_df['Length'].tolist()
     target_clusters = set(target_df['Cluster ID'].dropna())
     
-    # Check if we have sequences for background 4
-    has_sequence = 'Sequence' in target_df.columns
-    if not has_sequence:
+    # Check if we have sequences for backgrounds
+    has_target_sequence = 'Sequence' in target_df.columns
+    has_full_sequence = 'Sequence' in full_df.columns
+    
+    if not has_target_sequence:
         print("WARNING: No 'Sequence' column found in target TSV. Background 4 (shuffled) will be skipped or fail.")
+    if not has_full_sequence:
+        print("WARNING: No 'Sequence' column found in full TSV. Background 1 FASTA cannot be written.")
 
-# =====================================================================
+    # =====================================================================
     # Background 1: Real Proteins, Length-Matched, Non-overlapping Clusters
     # =====================================================================
-    print("Generating Background 1 (Real Embeddings)...")
-    # Filter out any rows in the full dataset that belong to target clusters
+    print("Generating Background 1 (Real Embeddings & FASTA)...")
     pool_df = full_df[~full_df['Cluster ID'].isin(target_clusters)].copy()
     
     selected_uniprots = []
     
-    for L in target_lengths:
-        # Try to find exact length match
-        matches = pool_df[pool_df['Length'] == L]
-        
-        if not matches.empty:
-            # Randomly select one exact match
-            idx = matches.sample(1).index[0]
-        else:
-            # Fallback: Find the closest length if exact match isn't available
-            idx = (pool_df['Length'] - L).abs().idxmin()
+    # Open the FASTA writer alongside your loop logic
+    with open(OUT_FASTA_REAL, 'w', encoding='utf-8') as f_real:
+        for L in target_lengths:
+            matches = pool_df[pool_df['Length'] == L]
             
-        # 1. Grab the UniProt ID and the Cluster ID for this selection
-        selected_uid = pool_df.loc[idx, 'From']
-        selected_cluster = pool_df.loc[idx, 'Cluster ID']
-        
-        selected_uniprots.append(selected_uid)
-        
-        # 2. FIX: Drop the ENTIRE cluster from the pool, not just the single row
-        # This guarantees no sequence in your background shares >50% ID with another
-        pool_df = pool_df[pool_df['Cluster ID'] != selected_cluster]
+            if not matches.empty:
+                # Switched to random.choice from standard library to cleanly progress 
+                # the global random state linearly over every iteration step.
+                idx = random.choice(matches.index.tolist())
+            else:
+                # Fallback: Find the closest length if exact match isn't available
+                idx = (pool_df['Length'] - L).abs().idxmin()
+                
+            selected_uid = pool_df.loc[idx, 'From']
+            selected_cluster = pool_df.loc[idx, 'Cluster ID']
+            
+            selected_uniprots.append(selected_uid)
+            
+            # Extract and save the real sequence to FASTA
+            if has_full_sequence:
+                selected_seq = pool_df.loc[idx, 'Sequence']
+                f_real.write(f">{selected_uid}\n{selected_seq}\n")
+            
+            # Drop the ENTIRE cluster from the pool
+            pool_df = pool_df[pool_df['Cluster ID'] != selected_cluster]
         
     print(f"Extracting {len(selected_uniprots)} embeddings from H5 file...")
     
@@ -76,9 +91,9 @@ def generate_backgrounds():
     # =====================================================================
     print("Generating Synthetic FASTAs (Backgrounds 2, 3, 4)...")
     
-    with open(OUT_FASTA_RANDOM, 'w') as f_rand, \
-         open(OUT_FASTA_POLY_A, 'w') as f_poly, \
-         open(OUT_FASTA_SHUFFLED, 'w') as f_shuf:
+    with open(OUT_FASTA_RANDOM, 'w', encoding='utf-8') as f_rand, \
+         open(OUT_FASTA_POLY_A, 'w', encoding='utf-8') as f_poly, \
+         open(OUT_FASTA_SHUFFLED, 'w', encoding='utf-8') as f_shuf:
         
         for idx, row in target_df.iterrows():
             uid = row['From']
@@ -93,9 +108,8 @@ def generate_backgrounds():
             f_poly.write(f">{uid}_polyA\n{poly_a_seq}\n")
             
             # Background 4: Shuffled Target
-            if has_sequence:
+            if has_target_sequence:
                 original_seq = str(row['Sequence'])
-                # Ensure we only shuffle the actual length, though length col should match seq length
                 seq_list = list(original_seq)
                 random.shuffle(seq_list)
                 shuffled_seq = ''.join(seq_list)

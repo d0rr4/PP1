@@ -2,7 +2,7 @@ import pandas as pd
 from Bio import SeqIO
 
 # 1. Load your TSV
-tsv_path = 'datasets/uniref50_under_2k_subset.tsv'
+tsv_path = 'datasets/uniref50_under_2k.tsv'
 df = pd.read_csv(tsv_path, sep='\t')
 
 # 2. Parse the Swiss-Prot FASTA into a dictionary {Accession: Sequence}
@@ -23,6 +23,6 @@ if missing > 0:
     print(f"Warning: {missing} sequences could not be found in the FASTA.")
 
 # 5. Save the updated TSV
-output_path = 'datasets/uniref50_under_2k_subset_with_seqs.tsv'
+output_path = 'datasets/uniref50_under_2k_seqs.tsv'
 df.to_csv(output_path, sep='\t', index=False)
 print(f"Saved updated TSV to {output_path}")

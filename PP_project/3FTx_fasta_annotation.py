@@ -2,10 +2,14 @@ import pandas as pd
 import requests
 import os
 
-def process_3ftx_data(input_excel, output_csv):
+def process_3ftx_data(input_excel, output_csv, mature_fasta, full_fasta):
     # 1. Load the data
     print("Loading data...")
     df = pd.read_excel(input_excel)
+
+    # Automatically scan for a full sequence column candidate if it exists
+    full_seq_candidates = ['Sequence', 'full_seq', 'full_sequence', 'Full Sequence']
+    full_seq_col = next((c for c in full_seq_candidates if c in df.columns), None)
 
     # 2. Define the columns to retain from the original spreadsheet
     cols_to_keep = [
@@ -16,11 +20,21 @@ def process_3ftx_data(input_excel, output_csv):
         'data_origin', 'membran_prediction', 'mature_seq', 'number_cysteines'
     ]
     
+    if full_seq_col:
+        cols_to_keep.append(full_seq_col)
+    
     # Filter columns (ignoring any missing columns safely)
     available_cols = [col for col in cols_to_keep if col in df.columns]
     df = df[available_cols].copy()
 
-    # 3. Extract IDs (Synchronized with FASTA generation logic to avoid alignment bugs)
+    # Determine 'has_full' status per row
+    if full_seq_col:
+        df['has_full'] = df[full_seq_col].notna() & (df[full_seq_col].astype(str).str.strip() != '')
+    else:
+        print("Warning: No explicit full sequence column found. All entries flagged as has_full = False.")
+        df['has_full'] = False
+
+    # 3. Extract IDs
     print("Extracting IDs and filtering for UniProt entries...")
     uniprot_ids = set()
     row_info = {} # Maps row index -> (is_uniprot, extracted_id)
@@ -30,11 +44,9 @@ def process_3ftx_data(input_excel, output_csv):
         id_new = row.get('id_new')
         is_up = False
         
-        # Mirror the exact ID fallback hierarchy used in the FASTA script
         if pd.notna(identifier) and '|' in str(identifier):
             parts = str(identifier).split('|')
             extracted_id = parts[1] if len(parts) > 1 else str(identifier)
-            # Explicitly flag as a UniProt entry if it uses standard Swiss-Prot/TrEMBL prefixes
             if len(parts) > 1 and parts[0].lower() in ['sp', 'tr']:
                 is_up = True
                 uniprot_ids.add(extracted_id)
@@ -81,63 +93,68 @@ def process_3ftx_data(input_excel, output_csv):
         except Exception as e:
             print(f"  Error fetching batch {i//chunk_size + 1}: {e}")
 
-    # 4.5. Load and parse SignalP 6.0 prediction outputs
-    signalp_preds = {}
-    pred_files = [
-        "datasets/3FTx_prediction_results_part1.txt", 
-        "datasets/3FTx_prediction_results_part2.txt"
-    ]
-    
-    for pred_file in pred_files:
-        if os.path.exists(pred_file):
-            print(f"Loading SignalP 6.0 predictions from {pred_file}...")
-            # skiprows=1 leaves the column names line active but jumps past the file header
-            sp_df = pd.read_csv(pred_file, sep='\t', skiprows=1)
-            # Remove the comment character '# ' out of the ID column name
-            sp_df.columns = sp_df.columns.str.replace('# ', '').str.strip()
-            
-            for _, row in sp_df.iterrows():
-                pid = str(row['ID']).strip()
-                pred_val = str(row['Prediction']).strip()
-                # Map into binary output (False if OTHER, True if any SP variants like SP, LIPO, TAT)
-                signalp_preds[pid] = False if pred_val == 'OTHER' else True
-        else:
-            print(f"Warning: SignalP output file missing at: {pred_file}")
-
-    # 5. Map annotations back to the original rows
+    # 5. Map UniProt annotations back to the original rows
     print("Mapping annotations back to dataset...")
     signal_peptide_col = []
-    signalp6_col = []
     
     for idx in df.index:
         is_up, extracted_id = row_info[idx]
         
-        # Map UniProt Web API results
         if is_up and extracted_id in sp_annotations:
             signal_peptide_col.append(sp_annotations[extracted_id])
         else:
             signal_peptide_col.append(pd.NA)
             
-        # Map SignalP 6.0 Local CLI results
-        if extracted_id in signalp_preds:
-            signalp6_col.append(signalp_preds[extracted_id])
-        else:
-            signalp6_col.append(pd.NA)
-            
     df['signal_peptide'] = signal_peptide_col
-    df['signalp6.0'] = signalp6_col
 
-    # 6. Save the final files (Both CSV and TSV)
-    output_tsv = output_csv.replace('.csv', '.tsv')
+    # Rename 'identifier' to avoid Protspace collision
+    if 'identifier' in df.columns:
+        df.rename(columns={'identifier': 'original_identifier'}, inplace=True)
+
+    # 6. Generate FASTA Files Before Stripping Sequence Columns
+    print("Writing FASTA files...")
     
-    print(f"Saving outputs...")
+    with open(mature_fasta, 'w', encoding='utf-8') as f_mat, \
+         open(full_fasta, 'w', encoding='utf-8') as f_full:
+         
+        for _, row in df.iterrows():
+            seq_id = row['ID']
+            m_seq = str(row['mature_seq']).strip() if pd.notna(row['mature_seq']) else ""
+            
+            # 1. Mature Sequence Only FASTA
+            if m_seq:
+                f_mat.write(f">{seq_id}\n{m_seq}\n")
+            
+            # 2. Full Sequence (with Mature Sequence Fallback) FASTA
+            if row['has_full'] and full_seq_col:
+                f_seq = str(row[full_seq_col]).strip()
+                f_full.write(f">{seq_id}\n{f_seq}\n")
+            elif m_seq: # Fallback to mature sequence
+                f_full.write(f">{seq_id}\n{m_seq}\n")
+
+    # Drop the raw sequence columns from the dataframe so it contains ONLY annotations
+    cols_to_drop = [c for c in ['mature_seq', full_seq_col] if c and c in df.columns]
+    df.drop(columns=cols_to_drop, inplace=True)
+
+    # 7. Save the final annotation files (Both CSV and TSV)
+    output_tsv = output_csv.replace('.csv', '.tsv')
+    print(f"Saving annotation outputs...")
     df.to_csv(output_csv, index=False)
-    df.to_csv(output_tsv, sep='\t', index=False) # sep='\t' writes as Tab-Separated Values
+    df.to_csv(output_tsv, sep='\t', index=False)
     
     print(f"Done! Successfully saved:")
-    print(f"  - CSV: {output_csv}")
-    print(f"  - TSV: {output_tsv}")
+    print(f"  - Annotation CSV: {output_csv}")
+    print(f"  - Annotation TSV: {output_tsv}")
+    print(f"  - Mature FASTA:   {mature_fasta}")
+    print(f"  - Full/FB FASTA:  {full_fasta}")
 
 # --- Execute the script ---
 if __name__ == "__main__":
-    process_3ftx_data("datasets/3FTx_raw_data.xlsx", "datasets/3FTx_annotation.csv")
+    excel_input = "datasets/3FTx_raw_data.xlsx"
+    csv_output = "datasets/3FTx_annotation.csv"
+    
+    # FASTA target locations
+    mature_fasta_out = "datasets/3FTx_mature.fasta"
+    full_fasta_out = "datasets/3FTx_full_fallback.fasta"
+    
+    process_3ftx_data(excel_input, csv_output, mature_fasta_out, full_fasta_out)

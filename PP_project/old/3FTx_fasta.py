@@ -1,12 +1,13 @@
 import pandas as pd
 import os
 
-def generate_split_fasta_from_excel(input_excel, output_fasta_1, output_fasta_2):
+def generate_fasta_from_excel(input_excel, output_fasta_all, output_fasta_full):
     # 1. Load the Excel data
     print("Loading data...")
     df = pd.read_excel(input_excel)
 
     valid_sequences = []
+    full_seq_only = []
 
     # 2. Extract and format sequences into memory
     for idx, row in df.iterrows():
@@ -15,10 +16,13 @@ def generate_split_fasta_from_excel(input_excel, output_fasta_1, output_fasta_2)
         identifier = row.get('identifier')
         id_new = row.get('id_new')
         
-        # Determine sequence priority: full_seq first, then mature_seq fallback
+        # Determine sequence priority and flag if it's a full sequence
         seq = None
+        is_full_seq = False
+        
         if pd.notna(full_seq) and isinstance(full_seq, str) and len(full_seq.strip()) > 0:
             seq = full_seq.strip()
+            is_full_seq = True
         elif pd.notna(mature_seq) and isinstance(mature_seq, str) and len(mature_seq.strip()) > 0:
             seq = mature_seq.strip()
         
@@ -32,34 +36,34 @@ def generate_split_fasta_from_excel(input_excel, output_fasta_1, output_fasta_2)
                 # Fallback to id_new if the identifier isn't structured with pipes
                 fasta_header = str(id_new) if pd.notna(id_new) else f"seq_{idx}"
             
-            # Append as a tuple to our valid list
+            # Append to our combined valid list
             valid_sequences.append((fasta_header, seq))
+            
+            # If it was a full sequence, also append to our specific full_seq list
+            if is_full_seq:
+                full_seq_only.append((fasta_header, seq))
 
-    # 3. Calculate the midpoint to split the sequences
-    midpoint = len(valid_sequences) // 2
-    part1 = valid_sequences[:midpoint]
-    part2 = valid_sequences[midpoint:]
+    # 3. Write all sequences to the main file
+    print(f"Generating combined FASTA file: {output_fasta_all}...")
+    with open(output_fasta_all, "w") as f:
+        for header, seq in valid_sequences:
+            f.write(f">{header}\n{seq}\n")
 
-    # 4. Write the first half to file 1
-    print(f"Generating FASTA file 1: {output_fasta_1}...")
-    with open(output_fasta_1, "w") as f1:
-        for header, seq in part1:
-            f1.write(f">{header}\n{seq}\n")
+    # 4. Write only the full sequences to the second file
+    print(f"Generating full_seq ONLY FASTA file: {output_fasta_full}...")
+    with open(output_fasta_full, "w") as f:
+        for header, seq in full_seq_only:
+            f.write(f">{header}\n{seq}\n")
 
-    # 5. Write the second half to file 2
-    print(f"Generating FASTA file 2: {output_fasta_2}...")
-    with open(output_fasta_2, "w") as f2:
-        for header, seq in part2:
-            f2.write(f">{header}\n{seq}\n")
-
-    print(f"Done! Successfully wrote {len(part1)} sequences to {output_fasta_1} and {len(part2)} to {output_fasta_2}")
+    print(f"Done! Successfully wrote {len(valid_sequences)} total sequences to {output_fasta_all}")
+    print(f"Done! Successfully wrote {len(full_seq_only)} full sequences to {output_fasta_full}")
 
 # --- Execute the script ---
 if __name__ == "__main__":
     input_path = "datasets/3FTx_raw_data.xlsx"
     
-    # Define two separate output paths
-    output_path_1 = "datasets/3FTx_mature_sequences_part1.fasta"
-    output_path_2 = "datasets/3FTx_mature_sequences_part2.fasta"
+    # Define output paths
+    output_path_all = "datasets/3FTx.fasta"
+    output_path_full_only = "datasets/3FTx_full_only.fasta"
     
-    generate_split_fasta_from_excel(input_path, output_path_1, output_path_2)
+    generate_fasta_from_excel(input_path, output_path_all, output_path_full_only)
